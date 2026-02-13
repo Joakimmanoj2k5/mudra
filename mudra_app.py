@@ -26,7 +26,7 @@ class CameraThread(QThread):
 
     def run(self):
         cap = cv2.VideoCapture(0)
-        
+        cv2=0
         while self._run_flag:
             ret, cv_img = cap.read()
             if ret:
