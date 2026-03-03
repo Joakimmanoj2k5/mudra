@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+.venv/
+mudra_env/
+logs/
+database/*.db
+models/**/*.pt
+models/mediapipe/*.task
+models/registry/*.png
+models/registry/*.csv
+backups/*.db
+data/assets/gestures/image_cache/

@@ -1,0 +1,948 @@
+{
+  "_description": "ISL (Indian Sign Language) reference dataset. Contains descriptions, hand instructions, and reference image URLs for each gesture in the MUDRA catalog.",
+  "_source_notes": "Descriptions are based on standard ISL conventions. Reference images link to public ISL resources.",
+  "alphabets": {
+    "A": {
+      "description": "Make a fist with the thumb resting against the side of the index finger. All fingers are curled tightly into the palm.",
+      "hand": "right",
+      "difficulty": "beginner",
+      "tips": "Keep fist tight, thumb pressed flat against the side of the index finger, not wrapped around it."
+    },
+    "B": {
+      "description": "Hold all four fingers straight up and pressed together. The thumb is tucked across the palm, touching the base of the fingers.",
+      "hand": "right",
+      "difficulty": "beginner",
+      "tips": "Fingers should be straight and touching each other with no gaps."
+    },
+    "C": {
+      "description": "Curve your fingers and thumb to form the shape of the letter C. The hand forms a half-circle or crescent shape.",
+      "hand": "right",
+      "difficulty": "beginner",
+      "tips": "Maintain a smooth curve. Don't let fingers touch the thumb."
+    },
+    "D": {
+      "description": "Extend the index finger straight up. Touch the tips of the middle, ring, and pinky fingers to the tip of the thumb, forming a circle at the base.",
+      "hand": "right",
+      "difficulty": "beginner",
+      "tips": "Index finger should be perfectly vertical. Other three fingers touch the thumb tip."
+    },
+    "E": {
+      "description": "Curl all four fingers down toward the palm. The thumb is tucked in front of the fingers, across the curled fingertips.",
+      "hand": "right",
+      "difficulty": "beginner",
+      "tips": "Fingers are curled but not in a full fist — fingertips are visible."
+    },
+    "F": {
+      "description": "Touch the tip of the index finger to the tip of the thumb, forming a small circle. The middle, ring, and pinky fingers are extended straight up.",
+      "hand": "right",
+      "difficulty": "beginner",
+      "tips": "Three extended fingers should be spread slightly apart."
+    },
+    "G": {
+      "description": "Extend the index finger and thumb horizontally, pointing to the side. The other three fingers are curled into the palm.",
+      "hand": "right",
+      "difficulty": "beginner",
+      "tips": "Hand is held sideways. Index finger and thumb are parallel, pointing in the same direction."
+    },
+    "H": {
+      "description": "Extend the index and middle fingers together horizontally, pointing to the side. The thumb rests on top of the curled ring and pinky fingers.",
+      "hand": "right",
+      "difficulty": "beginner",
+      "tips": "Two fingers are together and pointing sideways, like a horizontal peace sign."
+    },
+    "I": {
+      "description": "Make a fist with only the pinky finger extended straight up.",
+      "hand": "right",
+      "difficulty": "beginner",
+      "tips": "Keep the pinky straight and all other fingers tightly closed."
+    },
+    "J": {
+      "description": "Start with the pinky finger extended (like I), then trace a J shape in the air by curving the hand downward.",
+      "hand": "right",
+      "difficulty": "intermediate",
+      "tips": "This is a dynamic sign — the motion matters. Start from the I position and curve down and to the left."
+    },
+    "K": {
+      "description": "Extend the index and middle fingers in a V shape. The thumb is placed between them, touching the side of the middle finger.",
+      "hand": "right",
+      "difficulty": "beginner",
+      "tips": "The V shape should be wide, with the thumb clearly wedged between the two fingers."
+    },
+    "L": {
+      "description": "Extend the index finger straight up and the thumb straight out to the side, forming an L shape. Other fingers are curled in.",
+      "hand": "right",
+      "difficulty": "beginner",
+      "tips": "The angle between thumb and index finger should be approximately 90 degrees."
+    },
+    "M": {
+      "description": "Place the thumb under the index, middle, and ring fingers, which are draped over the thumb. The pinky is tucked in.",
+      "hand": "right",
+      "difficulty": "intermediate",
+      "tips": "Three fingers rest over the thumb. The thumb tip is visible between the ring and pinky fingers."
+    },
+    "N": {
+      "description": "Place the thumb under the index and middle fingers, which drape over the thumb. The ring and pinky fingers are tucked in.",
+      "hand": "right",
+      "difficulty": "intermediate",
+      "tips": "Similar to M but only two fingers over the thumb. Thumb tip peeks between the middle and ring fingers."
+    },
+    "O": {
+      "description": "Curve all fingers and the thumb to form a round O shape, with fingertips meeting the thumb tip.",
+      "hand": "right",
+      "difficulty": "beginner",
+      "tips": "All fingertips should meet the thumb to form a complete circle."
+    },
+    "P": {
+      "description": "Similar to K but with the hand pointing downward. Index and middle fingers are extended in a V, thumb between them, wrist bent down.",
+      "hand": "right",
+      "difficulty": "intermediate",
+      "tips": "The key difference from K is the downward orientation of the hand."
+    },
+    "Q": {
+      "description": "Similar to G but with the hand pointing downward. Index finger and thumb are extended, pointing toward the ground.",
+      "hand": "right",
+      "difficulty": "intermediate",
+      "tips": "Like G rotated downward. Index finger and thumb point toward the floor."
+    },
+    "R": {
+      "description": "Cross the index and middle fingers, with the index finger on top. Other fingers and thumb are curled in.",
+      "hand": "right",
+      "difficulty": "intermediate",
+      "tips": "The cross should be tight — middle finger wraps behind the index finger."
+    },
+    "S": {
+      "description": "Make a fist with the thumb wrapped across the front of the curled fingers.",
+      "hand": "right",
+      "difficulty": "beginner",
+      "tips": "Different from A — here the thumb is in front of the fingers, not on the side."
+    },
+    "T": {
+      "description": "Make a fist with the thumb tucked between the index and middle fingers.",
+      "hand": "right",
+      "difficulty": "beginner",
+      "tips": "The thumb tip should be visible poking out between the index and middle fingers."
+    },
+    "U": {
+      "description": "Extend the index and middle fingers straight up, pressed together. Thumb holds down the ring and pinky fingers.",
+      "hand": "right",
+      "difficulty": "beginner",
+      "tips": "The two fingers should be touching each other and pointing straight up."
+    },
+    "V": {
+      "description": "Extend the index and middle fingers in a V shape (peace sign). Other fingers are curled in with the thumb holding them.",
+      "hand": "right",
+      "difficulty": "beginner",
+      "tips": "The V should be a clear spread between the two fingers."
+    },
+    "W": {
+      "description": "Extend the index, middle, and ring fingers spread apart. The thumb holds the pinky finger down against the palm.",
+      "hand": "right",
+      "difficulty": "beginner",
+      "tips": "Three fingers are spread wide, like the number 3."
+    },
+    "X": {
+      "description": "Extend the index finger and bend it into a hook shape. All other fingers are curled into a fist.",
+      "hand": "right",
+      "difficulty": "intermediate",
+      "tips": "The index finger should be clearly hooked, not straight and not fully curled."
+    },
+    "Y": {
+      "description": "Extend the thumb and pinky finger outward. The index, middle, and ring fingers are curled into the palm.",
+      "hand": "right",
+      "difficulty": "beginner",
+      "tips": "Like the 'hang loose' or 'shaka' sign."
+    },
+    "Z": {
+      "description": "Extend the index finger and trace a Z shape in the air — diagonal down-right, horizontal left, diagonal down-right.",
+      "hand": "right",
+      "difficulty": "intermediate",
+      "tips": "This is a dynamic sign. Draw the Z shape clearly with your index finger."
+    }
+  },
+  "words": {
+    "Namaste": {
+      "description": "Press both palms together in front of your chest with fingers pointing upward. Bow slightly as a sign of respect.",
+      "hands": "both",
+      "mode": "static",
+      "category": "greetings",
+      "difficulty": "beginner",
+      "tips": "Keep palms flat and pressed firmly together. Fingers point upward."
+    },
+    "Hello": {
+      "description": "Raise your open right hand near your forehead and wave it outward in a small arc.",
+      "hands": "right",
+      "mode": "dynamic",
+      "category": "greetings",
+      "difficulty": "beginner",
+      "tips": "The wave should be a smooth outward motion from near the temple."
+    },
+    "Good Morning": {
+      "description": "Combine the sign for 'good' (flat hand moves from chin forward) with 'morning' (arm rises like the sun rising).",
+      "hands": "right",
+      "mode": "dynamic",
+      "category": "greetings",
+      "difficulty": "intermediate",
+      "tips": "The rising motion should be slow and deliberate, mimicking sunrise."
+    },
+    "Good Night": {
+      "description": "Combine the sign for 'good' with 'night' (arm descends and hand closes, mimicking sunset and darkness).",
+      "hands": "right",
+      "mode": "dynamic",
+      "category": "greetings",
+      "difficulty": "intermediate",
+      "tips": "The descending motion should be smooth with the hand gradually closing."
+    },
+    "How Are You": {
+      "description": "Point to the person, then make curved hands at the chest and move them outward with a questioning expression.",
+      "hands": "both",
+      "mode": "dynamic",
+      "category": "greetings",
+      "difficulty": "intermediate",
+      "tips": "Facial expression (raised eyebrows) is important for the question form."
+    },
+    "I Am Fine": {
+      "description": "Touch your chest with an open hand, then move the hand outward with a thumbs up or positive gesture.",
+      "hands": "right",
+      "mode": "dynamic",
+      "category": "greetings",
+      "difficulty": "intermediate",
+      "tips": "Start with the hand on the chest, then move it outward confidently."
+    },
+    "Thank You": {
+      "description": "Touch your fingertips to your chin or lips, then move your flat hand forward and slightly downward, palm facing up.",
+      "hands": "right",
+      "mode": "dynamic",
+      "category": "greetings",
+      "difficulty": "beginner",
+      "tips": "The forward motion should be graceful and deliberate."
+    },
+    "Sorry": {
+      "description": "Make a fist and rub it in a circular motion over your heart/chest area.",
+      "hands": "right",
+      "mode": "static",
+      "category": "greetings",
+      "difficulty": "beginner",
+      "tips": "The circular motion should be slow and show sincerity."
+    },
+    "Please": {
+      "description": "Place your flat hand on your chest and move it in a circular motion.",
+      "hands": "right",
+      "mode": "dynamic",
+      "category": "greetings",
+      "difficulty": "beginner",
+      "tips": "Use an open palm and keep the motion gentle."
+    },
+    "Welcome": {
+      "description": "Hold your open hand out, palm up, and sweep it inward toward your body in a welcoming gesture.",
+      "hands": "right",
+      "mode": "dynamic",
+      "category": "greetings",
+      "difficulty": "beginner",
+      "tips": "The sweeping motion should be warm and inviting."
+    },
+    "Yes": {
+      "description": "Make a fist and nod it forward, like a head nodding yes. The fist moves up and down.",
+      "hands": "right",
+      "mode": "static",
+      "category": "common",
+      "difficulty": "beginner",
+      "tips": "A simple fist nodding motion. Keep it clear and definite."
+    },
+    "No": {
+      "description": "Extend your index and middle fingers and snap them together with the thumb, like a small pinching or clicking motion.",
+      "hands": "right",
+      "mode": "static",
+      "category": "common",
+      "difficulty": "beginner",
+      "tips": "The snapping motion should be quick and decisive."
+    },
+    "Okay": {
+      "description": "Touch the tip of the index finger to the thumb, forming a circle. Other fingers are extended.",
+      "hands": "right",
+      "mode": "static",
+      "category": "common",
+      "difficulty": "beginner",
+      "tips": "Similar to the universal OK gesture."
+    },
+    "Help": {
+      "description": "Place a fist on an open palm and raise both hands upward together.",
+      "hands": "both",
+      "mode": "dynamic",
+      "category": "common",
+      "difficulty": "intermediate",
+      "tips": "The upward motion shows the request for assistance."
+    },
+    "Stop": {
+      "description": "Hold up an open palm facing forward, fingers together and pointing up. The hand is firm and still.",
+      "hands": "right",
+      "mode": "static",
+      "category": "common",
+      "difficulty": "beginner",
+      "tips": "Keep the palm flat and facing the other person directly."
+    },
+    "Go": {
+      "description": "Point the index finger forward and move the hand in the direction of travel.",
+      "hands": "right",
+      "mode": "dynamic",
+      "category": "common",
+      "difficulty": "beginner",
+      "tips": "The pointing motion should be clear and directional."
+    },
+    "Come": {
+      "description": "Extend your hand with palm facing up, then curl the fingers inward in a beckoning motion.",
+      "hands": "right",
+      "mode": "dynamic",
+      "category": "common",
+      "difficulty": "beginner",
+      "tips": "The beckoning motion should be repeated 2-3 times."
+    },
+    "Wait": {
+      "description": "Hold up both hands, palms facing forward with fingers spread, and hold still.",
+      "hands": "both",
+      "mode": "static",
+      "category": "common",
+      "difficulty": "beginner",
+      "tips": "Keep hands steady and still — the stillness itself conveys 'wait'."
+    },
+    "Finish": {
+      "description": "Hold both hands up with fingers spread, then quickly turn them outward and down.",
+      "hands": "both",
+      "mode": "dynamic",
+      "category": "common",
+      "difficulty": "intermediate",
+      "tips": "The outward flip should be quick and definitive."
+    },
+    "Start": {
+      "description": "Place the index finger of the dominant hand between the index and middle fingers of the other hand, then twist.",
+      "hands": "both",
+      "mode": "dynamic",
+      "category": "common",
+      "difficulty": "intermediate",
+      "tips": "The twisting motion represents turning a key to start something."
+    },
+    "Learn": {
+      "description": "Place fingertips of one hand on your open opposite palm, then bring the fingers up to your forehead.",
+      "hands": "both",
+      "mode": "dynamic",
+      "category": "education",
+      "difficulty": "intermediate",
+      "tips": "The motion from palm to forehead represents taking knowledge into the mind."
+    },
+    "Study": {
+      "description": "Hold one hand flat (like a book) and wiggle the fingers of the other hand above it, as if reading.",
+      "hands": "both",
+      "mode": "dynamic",
+      "category": "education",
+      "difficulty": "intermediate",
+      "tips": "The wiggling fingers represent eyes scanning a page."
+    },
+    "Teacher": {
+      "description": "Touch both hands to the temples, then move them forward and down as if sharing knowledge.",
+      "hands": "both",
+      "mode": "dynamic",
+      "category": "education",
+      "difficulty": "intermediate",
+      "tips": "The motion represents knowledge flowing from the head outward."
+    },
+    "Student": {
+      "description": "Hold one palm open (like a book) and use the other hand to mime taking knowledge from it to the forehead.",
+      "hands": "both",
+      "mode": "static",
+      "category": "education",
+      "difficulty": "intermediate",
+      "tips": "Similar to 'learn' but with emphasis on the person receiving knowledge."
+    },
+    "Book": {
+      "description": "Hold both hands flat, palms together, then open them like opening a book.",
+      "hands": "both",
+      "mode": "static",
+      "category": "education",
+      "difficulty": "beginner",
+      "tips": "Palms start together and separate, mimicking a book opening."
+    },
+    "Pen": {
+      "description": "Mime holding a pen with your dominant hand and make a small writing gesture on the opposite palm.",
+      "hands": "both",
+      "mode": "static",
+      "category": "education",
+      "difficulty": "beginner",
+      "tips": "The writing motion should be small and recognizable."
+    },
+    "Notebook": {
+      "description": "Combine the sign for book (opening palms) with a writing gesture on the opened palm.",
+      "hands": "both",
+      "mode": "static",
+      "category": "education",
+      "difficulty": "beginner",
+      "tips": "Open the book first, then write on it."
+    },
+    "Exam": {
+      "description": "Make writing motions with both hands simultaneously, as if writing answers on a paper.",
+      "hands": "both",
+      "mode": "dynamic",
+      "category": "education",
+      "difficulty": "intermediate",
+      "tips": "Both hands write at the same time to show urgency of an exam."
+    },
+    "Pass": {
+      "description": "Move a flat hand forward past the other hand, indicating moving past a barrier.",
+      "hands": "both",
+      "mode": "dynamic",
+      "category": "education",
+      "difficulty": "beginner",
+      "tips": "The forward motion represents successfully passing through."
+    },
+    "Fail": {
+      "description": "Slide the flat dominant hand off the opposite palm downward, indicating falling down.",
+      "hands": "both",
+      "mode": "dynamic",
+      "category": "education",
+      "difficulty": "beginner",
+      "tips": "The downward sliding motion represents falling or failing."
+    },
+    "Family": {
+      "description": "Make the sign for 'F' with both hands, then circle them forward until the thumbs and index fingers touch.",
+      "hands": "both",
+      "mode": "dynamic",
+      "category": "family",
+      "difficulty": "intermediate",
+      "tips": "The circular motion represents the family circle."
+    },
+    "Mother": {
+      "description": "Touch the chin with the thumb of an open hand (fingers spread), palm facing left.",
+      "hands": "right",
+      "mode": "static",
+      "category": "family",
+      "difficulty": "beginner",
+      "tips": "The thumb should clearly touch the chin area."
+    },
+    "Father": {
+      "description": "Touch the forehead with the thumb of an open hand (fingers spread), palm facing left.",
+      "hands": "right",
+      "mode": "static",
+      "category": "family",
+      "difficulty": "beginner",
+      "tips": "Like 'mother' but touching the forehead instead of the chin."
+    },
+    "Brother": {
+      "description": "Touch the forehead with the thumb (like 'father'), then bring both index fingers together parallel.",
+      "hands": "both",
+      "mode": "static",
+      "category": "family",
+      "difficulty": "intermediate",
+      "tips": "The parallel index fingers represent a same-level family member."
+    },
+    "Sister": {
+      "description": "Touch the chin with the thumb (like 'mother'), then bring both index fingers together parallel.",
+      "hands": "both",
+      "mode": "static",
+      "category": "family",
+      "difficulty": "intermediate",
+      "tips": "The parallel index fingers represent a same-level family member."
+    },
+    "Baby": {
+      "description": "Cradle your arms as if holding a baby and rock them gently from side to side.",
+      "hands": "both",
+      "mode": "dynamic",
+      "category": "family",
+      "difficulty": "beginner",
+      "tips": "The rocking motion should be gentle and nurturing."
+    },
+    "Friend": {
+      "description": "Hook the index fingers together, then reverse and hook them the other way.",
+      "hands": "both",
+      "mode": "dynamic",
+      "category": "family",
+      "difficulty": "beginner",
+      "tips": "The hooked fingers represent a bond between two people."
+    },
+    "Home": {
+      "description": "Touch your fingertips together to form a triangle or roof shape above your head.",
+      "hands": "both",
+      "mode": "static",
+      "category": "family",
+      "difficulty": "beginner",
+      "tips": "The triangle shape represents the roof of a house."
+    },
+    "Marriage": {
+      "description": "Clasp both hands together, interlocking the fingers, representing the joining of two people.",
+      "hands": "both",
+      "mode": "dynamic",
+      "category": "family",
+      "difficulty": "intermediate",
+      "tips": "The interlocked hands should come together from separate positions."
+    },
+    "Child": {
+      "description": "Hold your hand flat, palm facing down, and lower it to indicate the small height of a child.",
+      "hands": "right",
+      "mode": "dynamic",
+      "category": "family",
+      "difficulty": "beginner",
+      "tips": "The lowered hand shows the short stature of a child."
+    },
+    "Water": {
+      "description": "Make a 'W' shape with three fingers and tap the chin with the index finger 2-3 times.",
+      "hands": "right",
+      "mode": "static",
+      "category": "daily",
+      "difficulty": "beginner",
+      "tips": "The tapping on the chin represents drinking water."
+    },
+    "Food": {
+      "description": "Bring your fingertips together and tap them to your lips repeatedly, as if putting food in your mouth.",
+      "hands": "right",
+      "mode": "dynamic",
+      "category": "daily",
+      "difficulty": "beginner",
+      "tips": "The tapping should be gentle and represent eating."
+    },
+    "Rice": {
+      "description": "Cup both hands together and mime scooping rice from a bowl to your mouth.",
+      "hands": "both",
+      "mode": "static",
+      "category": "daily",
+      "difficulty": "beginner",
+      "tips": "The scooping gesture should be clear and deliberate."
+    },
+    "Milk": {
+      "description": "Make a fist and squeeze it open and closed, as if milking a cow.",
+      "hands": "right",
+      "mode": "dynamic",
+      "category": "daily",
+      "difficulty": "beginner",
+      "tips": "The squeezing motion should be repeated 2-3 times."
+    },
+    "Tea": {
+      "description": "Mime holding a small cup and sipping from it, pinky slightly extended.",
+      "hands": "right",
+      "mode": "static",
+      "category": "daily",
+      "difficulty": "beginner",
+      "tips": "The sipping gesture with a small cup distinguishes tea from other drinks."
+    },
+    "Coffee": {
+      "description": "Place one fist on top of the other and rotate the top fist, as if grinding coffee beans.",
+      "hands": "both",
+      "mode": "dynamic",
+      "category": "daily",
+      "difficulty": "beginner",
+      "tips": "The grinding motion distinguishes coffee from tea."
+    },
+    "Sleep": {
+      "description": "Tilt your head to one side, place your palm against your tilted cheek, and close your eyes.",
+      "hands": "right",
+      "mode": "dynamic",
+      "category": "daily",
+      "difficulty": "beginner",
+      "tips": "The tilted head and closed eyes make this sign very clear."
+    },
+    "Wake Up": {
+      "description": "Place closed fists near your eyes (as if sleeping), then open them wide while opening your eyes.",
+      "hands": "both",
+      "mode": "dynamic",
+      "category": "daily",
+      "difficulty": "beginner",
+      "tips": "The transition from closed to open represents waking up."
+    },
+    "Bath": {
+      "description": "Rub both fists up and down on your chest, as if scrubbing your body.",
+      "hands": "both",
+      "mode": "dynamic",
+      "category": "daily",
+      "difficulty": "beginner",
+      "tips": "The scrubbing motion should be clear and repeated."
+    },
+    "Work": {
+      "description": "Tap the dominant fist on top of the non-dominant fist repeatedly, representing hammering or working.",
+      "hands": "both",
+      "mode": "dynamic",
+      "category": "daily",
+      "difficulty": "beginner",
+      "tips": "The tapping represents manual labor or effort."
+    },
+    "Shop": {
+      "description": "Mime taking money from a wallet and handing it over, representing a purchase.",
+      "hands": "both",
+      "mode": "dynamic",
+      "category": "daily",
+      "difficulty": "intermediate",
+      "tips": "The money exchange gesture makes the meaning clear."
+    },
+    "Money": {
+      "description": "Rub your thumb and fingers together repeatedly, representing handling money.",
+      "hands": "right",
+      "mode": "static",
+      "category": "daily",
+      "difficulty": "beginner",
+      "tips": "The rubbing motion should be at chest level."
+    },
+    "Bus": {
+      "description": "Mime holding a large steering wheel and turning it, representing driving a large vehicle.",
+      "hands": "both",
+      "mode": "dynamic",
+      "category": "travel",
+      "difficulty": "beginner",
+      "tips": "The large steering wheel motion distinguishes bus from car."
+    },
+    "Train": {
+      "description": "Extend both arms and move them in a back-and-forth motion like train wheels on tracks.",
+      "hands": "both",
+      "mode": "dynamic",
+      "category": "travel",
+      "difficulty": "intermediate",
+      "tips": "The rhythmic motion represents the chugging of a train."
+    },
+    "Car": {
+      "description": "Mime holding a steering wheel at chest level and make small turning motions.",
+      "hands": "both",
+      "mode": "static",
+      "category": "travel",
+      "difficulty": "beginner",
+      "tips": "The steering wheel is smaller than the bus sign."
+    },
+    "Bike": {
+      "description": "Make fists and rotate them alternately, as if pedaling a bicycle with your hands.",
+      "hands": "both",
+      "mode": "dynamic",
+      "category": "travel",
+      "difficulty": "beginner",
+      "tips": "The pedaling motion should be circular and alternating."
+    },
+    "Road": {
+      "description": "Place both flat hands parallel and move them forward, representing a path stretching ahead.",
+      "hands": "both",
+      "mode": "dynamic",
+      "category": "travel",
+      "difficulty": "beginner",
+      "tips": "The parallel hands represent the two sides of a road."
+    },
+    "Left": {
+      "description": "Point or sweep your flat hand to the left side.",
+      "hands": "right",
+      "mode": "static",
+      "category": "travel",
+      "difficulty": "beginner",
+      "tips": "A clear directional motion to the left."
+    },
+    "Right": {
+      "description": "Point or sweep your flat hand to the right side.",
+      "hands": "right",
+      "mode": "static",
+      "category": "travel",
+      "difficulty": "beginner",
+      "tips": "A clear directional motion to the right."
+    },
+    "Straight": {
+      "description": "Hold your flat hand vertically and push it straight forward.",
+      "hands": "right",
+      "mode": "dynamic",
+      "category": "travel",
+      "difficulty": "beginner",
+      "tips": "The forward push should be direct and unwavering."
+    },
+    "Near": {
+      "description": "Hold both hands apart, then bring them close together without touching.",
+      "hands": "both",
+      "mode": "static",
+      "category": "travel",
+      "difficulty": "beginner",
+      "tips": "The close proximity of the hands represents nearness."
+    },
+    "Far": {
+      "description": "Hold both hands together, then move them apart to a wide distance.",
+      "hands": "both",
+      "mode": "static",
+      "category": "travel",
+      "difficulty": "beginner",
+      "tips": "The wide separation represents distance."
+    },
+    "Hospital": {
+      "description": "Use the index finger to draw a cross (+) shape on the upper arm, representing the medical cross.",
+      "hands": "right",
+      "mode": "dynamic",
+      "category": "emergency",
+      "difficulty": "intermediate",
+      "tips": "The cross should be drawn clearly on the upper arm or shoulder area."
+    },
+    "Doctor": {
+      "description": "Touch the wrist of one hand with the fingers of the other, as if checking a pulse.",
+      "hands": "both",
+      "mode": "dynamic",
+      "category": "emergency",
+      "difficulty": "intermediate",
+      "tips": "The pulse-checking gesture clearly identifies a doctor."
+    },
+    "Medicine": {
+      "description": "Mime pouring medicine into the palm of one hand and taking it to the mouth.",
+      "hands": "both",
+      "mode": "static",
+      "category": "emergency",
+      "difficulty": "beginner",
+      "tips": "The pouring and taking motion should be clear."
+    },
+    "Pain": {
+      "description": "Point both index fingers toward each other near the affected area and twist them, representing sharp pain.",
+      "hands": "both",
+      "mode": "dynamic",
+      "category": "emergency",
+      "difficulty": "beginner",
+      "tips": "The twisting motion represents the sensation of pain."
+    },
+    "Blood": {
+      "description": "Touch the back of one hand, then wiggle fingers downward, representing liquid flowing.",
+      "hands": "both",
+      "mode": "static",
+      "category": "emergency",
+      "difficulty": "beginner",
+      "tips": "The downward wiggling fingers represent blood dripping."
+    },
+    "Emergency": {
+      "description": "Wave both hands rapidly in the air with urgency, or make the sign for 'help' with rapid motion.",
+      "hands": "both",
+      "mode": "dynamic",
+      "category": "emergency",
+      "difficulty": "beginner",
+      "tips": "Speed and urgency distinguish this from regular signs."
+    },
+    "Police": {
+      "description": "Tap the area above the chest (where a badge would be) with the flat hand or make a C shape there.",
+      "hands": "right",
+      "mode": "dynamic",
+      "category": "emergency",
+      "difficulty": "intermediate",
+      "tips": "The badge-tapping gesture is the key identifier."
+    },
+    "Fire": {
+      "description": "Hold both hands with fingers spread, palms facing you, and wiggle all fingers while moving hands upward, representing flames.",
+      "hands": "both",
+      "mode": "dynamic",
+      "category": "emergency",
+      "difficulty": "beginner",
+      "tips": "The upward wiggling motion represents dancing flames."
+    },
+    "Danger": {
+      "description": "Hold up one fist and thrust it forward forcefully with a warning expression.",
+      "hands": "right",
+      "mode": "static",
+      "category": "emergency",
+      "difficulty": "beginner",
+      "tips": "The facial expression is important — show concern/warning."
+    },
+    "Call": {
+      "description": "Hold your hand in a Y-shape (thumb and pinky extended) near your ear, like a phone.",
+      "hands": "right",
+      "mode": "dynamic",
+      "category": "emergency",
+      "difficulty": "beginner",
+      "tips": "The phone gesture is universally understood."
+    },
+    "Time": {
+      "description": "Tap your wrist (where a watch would be) with the index finger of the other hand.",
+      "hands": "both",
+      "mode": "static",
+      "category": "numbers_time",
+      "difficulty": "beginner",
+      "tips": "The watch-tapping gesture clearly means time."
+    },
+    "Day": {
+      "description": "Hold one arm horizontal and bring the dominant hand up from behind it in an arc, like the sun rising and crossing the sky.",
+      "hands": "both",
+      "mode": "static",
+      "category": "numbers_time",
+      "difficulty": "beginner",
+      "tips": "The arc represents the sun's path during the day."
+    },
+    "Night": {
+      "description": "Hold one arm horizontal and bring the dominant hand down in a curve behind it, like the sun setting.",
+      "hands": "both",
+      "mode": "static",
+      "category": "numbers_time",
+      "difficulty": "beginner",
+      "tips": "The downward curve represents the sun going below the horizon."
+    },
+    "Today": {
+      "description": "Point downward with both hands, palms down, indicating 'now' or 'this day'.",
+      "hands": "both",
+      "mode": "dynamic",
+      "category": "numbers_time",
+      "difficulty": "beginner",
+      "tips": "The downward pointing represents the present moment."
+    },
+    "Tomorrow": {
+      "description": "Touch the chin with the thumb of a closed hand, then move the hand forward in an arc.",
+      "hands": "right",
+      "mode": "dynamic",
+      "category": "numbers_time",
+      "difficulty": "beginner",
+      "tips": "The forward motion represents moving into the future."
+    },
+    "Yesterday": {
+      "description": "Touch the chin or cheek with the thumb, then move the hand backward over the shoulder.",
+      "hands": "right",
+      "mode": "dynamic",
+      "category": "numbers_time",
+      "difficulty": "beginner",
+      "tips": "The backward motion represents looking back in time."
+    },
+    "One": {
+      "description": "Hold up the index finger, palm facing forward.",
+      "hands": "right",
+      "mode": "static",
+      "category": "numbers_time",
+      "difficulty": "beginner",
+      "tips": "Keep only the index finger extended, all others curled."
+    },
+    "Two": {
+      "description": "Hold up the index and middle fingers in a V shape, palm facing forward.",
+      "hands": "right",
+      "mode": "static",
+      "category": "numbers_time",
+      "difficulty": "beginner",
+      "tips": "Like a peace sign facing forward."
+    },
+    "Three": {
+      "description": "Hold up the index, middle, and ring fingers, palm facing forward.",
+      "hands": "right",
+      "mode": "static",
+      "category": "numbers_time",
+      "difficulty": "beginner",
+      "tips": "Three fingers extended with clear spacing."
+    },
+    "Four": {
+      "description": "Hold up four fingers (index through pinky), thumb curled across the palm.",
+      "hands": "right",
+      "mode": "static",
+      "category": "numbers_time",
+      "difficulty": "beginner",
+      "tips": "Keep the thumb tucked, all four fingers extended."
+    },
+    "Five": {
+      "description": "Hold up all five fingers spread apart, palm facing forward.",
+      "hands": "right",
+      "mode": "static",
+      "category": "numbers_time",
+      "difficulty": "beginner",
+      "tips": "All fingers and thumb spread wide and visible."
+    },
+    "Six": {
+      "description": "Extend the thumb and pinky finger, with the middle three fingers curled down. In ISL, six can vary by region.",
+      "hands": "right",
+      "mode": "static",
+      "category": "numbers_time",
+      "difficulty": "beginner",
+      "tips": "Regional variations exist — this is one common form."
+    },
+    "Seven": {
+      "description": "Touch the thumb to the ring finger while extending the index, middle, and pinky fingers.",
+      "hands": "right",
+      "mode": "static",
+      "category": "numbers_time",
+      "difficulty": "beginner",
+      "tips": "The specific finger configuration distinguishes seven from other numbers."
+    },
+    "Eight": {
+      "description": "Touch the thumb to the middle finger while extending the index, ring, and pinky fingers.",
+      "hands": "right",
+      "mode": "static",
+      "category": "numbers_time",
+      "difficulty": "beginner",
+      "tips": "Similar to seven but with a different finger touched."
+    },
+    "Nine": {
+      "description": "Touch the thumb to the index finger while extending the middle, ring, and pinky fingers.",
+      "hands": "right",
+      "mode": "static",
+      "category": "numbers_time",
+      "difficulty": "beginner",
+      "tips": "The thumb-index touch creates the nine configuration."
+    },
+    "Ten": {
+      "description": "Hold up both hands with all fingers extended and shake them slightly, or show a closed fist with thumb up twice.",
+      "hands": "both",
+      "mode": "static",
+      "category": "numbers_time",
+      "difficulty": "beginner",
+      "tips": "Ten is represented by showing all ten fingers or a specific regional sign."
+    },
+    "Love": {
+      "description": "Cross both arms over your chest in an X shape, fists closed, hugging yourself.",
+      "hands": "both",
+      "mode": "dynamic",
+      "category": "emotion",
+      "difficulty": "beginner",
+      "tips": "The self-hug clearly represents love and affection."
+    },
+    "Happy": {
+      "description": "Place both flat hands on your chest and brush them upward and outward repeatedly with a smile.",
+      "hands": "both",
+      "mode": "dynamic",
+      "category": "emotion",
+      "difficulty": "beginner",
+      "tips": "The upward motion represents joy rising from the heart."
+    },
+    "Sad": {
+      "description": "Place both hands on your face and draw them downward slowly with a sad expression.",
+      "hands": "both",
+      "mode": "dynamic",
+      "category": "emotion",
+      "difficulty": "beginner",
+      "tips": "The downward motion and facial expression together convey sadness."
+    },
+    "Angry": {
+      "description": "Make claw-like hands in front of your face and pull them down firmly with a tense expression.",
+      "hands": "both",
+      "mode": "dynamic",
+      "category": "emotion",
+      "difficulty": "beginner",
+      "tips": "The tension in the hands and face shows anger."
+    },
+    "Scared": {
+      "description": "Hold both fists near your chest, then quickly open them while pulling the hands back, as if startled.",
+      "hands": "both",
+      "mode": "dynamic",
+      "category": "emotion",
+      "difficulty": "beginner",
+      "tips": "The sudden opening and pulling back represents being startled."
+    },
+    "Tired": {
+      "description": "Place both bent hands (fingertips touching) on your chest, then let them fall/drop downward.",
+      "hands": "both",
+      "mode": "dynamic",
+      "category": "emotion",
+      "difficulty": "beginner",
+      "tips": "The dropping motion represents energy draining away."
+    },
+    "Cold": {
+      "description": "Hug yourself with both arms and shiver/shake your body slightly.",
+      "hands": "both",
+      "mode": "static",
+      "category": "emotion",
+      "difficulty": "beginner",
+      "tips": "The shivering motion is the key element."
+    },
+    "Hot": {
+      "description": "Hold your hand near your mouth with fingers spread, then quickly pull it away and shake it, as if touching something hot.",
+      "hands": "right",
+      "mode": "static",
+      "category": "emotion",
+      "difficulty": "beginner",
+      "tips": "The pulling away motion represents reacting to heat."
+    },
+    "Great": {
+      "description": "Hold both hands up with thumbs extended, then thrust them forward with enthusiasm.",
+      "hands": "both",
+      "mode": "dynamic",
+      "category": "emotion",
+      "difficulty": "beginner",
+      "tips": "The forward thrust with thumbs up shows enthusiasm."
+    },
+    "Bad": {
+      "description": "Touch your chin or lips with your flat hand, then flip the hand downward palm-down.",
+      "hands": "right",
+      "mode": "dynamic",
+      "category": "emotion",
+      "difficulty": "beginner",
+      "tips": "The downward flip represents negativity."
+    }
+  }
+}

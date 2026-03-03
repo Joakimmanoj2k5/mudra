@@ -1,0 +1,14 @@
+version: "3.9"
+services:
+  mudra-api:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.api
+    container_name: mudra-api
+    ports:
+      - "8000:8000"
+    volumes:
+      - ../database:/app/database
+      - ../models:/app/models
+      - ../config:/app/config
+    restart: unless-stopped

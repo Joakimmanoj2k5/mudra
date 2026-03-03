@@ -1,0 +1,14 @@
+app_name: MUDRA
+window_title: "MUDRA - Interactive ISL Learning"
+model:
+  static_model_path: "models/static/static_mlp_v001.pt"
+  dynamic_model_path: "models/dynamic/dynamic_bigru_v001.pt"
+  label_map_path: "models/registry/label_map.json"
+  norm_stats_path: "models/registry/norm_stats.json"
+inference:
+  static_threshold: 0.70
+  dynamic_threshold: 0.65
+  smoothing_alpha: 0.6
+  confirmation_frames: 3
+database:
+  sqlite_path: "database/mudra.db"

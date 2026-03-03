@@ -1,0 +1,7 @@
+[tool.ruff]
+line-length = 120
+exclude = ["mudra_env", ".venv"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
