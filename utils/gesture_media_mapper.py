@@ -5,12 +5,16 @@ from __future__ import annotations
 import json
 import re
 from pathlib import Path
-from typing import Dict, Optional, Tuple
+from typing import Dict, Optional
+
+from utils.common.gesture_catalog import all_gestures
 
 ASSET_ROOT = Path("data/assets/gestures")
 IMAGE_CACHE = ASSET_ROOT / "image_cache"
+PLACEHOLDER_IMAGE = ASSET_ROOT / "placeholder.png"
 _REF_DATA_PATH = ASSET_ROOT / "isl_reference_data.json"
 _ref_cache: Optional[Dict] = None
+_gesture_code_map_cache: Optional[Dict[str, str]] = None
 
 
 def _slug(value: str) -> str:
@@ -32,8 +36,43 @@ def _load_reference_data() -> Dict:
     return _ref_cache
 
 
-def get_reference_image_path(gesture_name: str) -> Optional[str]:
+def _gesture_code_map() -> Dict[str, str]:
+    global _gesture_code_map_cache
+    if _gesture_code_map_cache is not None:
+        return _gesture_code_map_cache
+    mapping: Dict[str, str] = {}
+    for spec in all_gestures():
+        mapping[spec.code.upper()] = spec.display_name
+    _gesture_code_map_cache = mapping
+    return mapping
+
+
+def _normalize_gesture_name(gesture_code_or_name: str) -> str:
+    """Normalize DB gesture_code or display_name to catalog display_name."""
+    value = (gesture_code_or_name or "").strip()
+    if not value:
+        return ""
+
+    code_key = value.upper()
+    code_map = _gesture_code_map()
+    if code_key in code_map:
+        return code_map[code_key]
+
+    if code_key.startswith("ALPHABET_"):
+        tail = code_key.split("_", 1)[1].strip()
+        if len(tail) == 1 and tail.isalpha():
+            return tail
+
+    if code_key.startswith("WORD_"):
+        phrase = code_key.split("_", 1)[1].replace("_", " ").strip().lower()
+        return " ".join(tok.capitalize() for tok in phrase.split())
+
+    return value
+
+
+def get_reference_image_path(gesture_code_or_name: str) -> Optional[str]:
     """Return path to a cached reference image for the gesture, or None."""
+    gesture_name = _normalize_gesture_name(gesture_code_or_name)
     if not gesture_name:
         return None
 
@@ -52,29 +91,32 @@ def get_reference_image_path(gesture_name: str) -> Optional[str]:
     return None
 
 
-def get_media_path(gesture_name: str) -> Optional[str]:
+def get_media_path(gesture_code_or_name: str) -> Optional[str]:
     """Return the best available media file for *gesture_name*.
 
     Priority order:
         1. mp4 animation (generated reference)
         2. gif animation
         3. cached png image (from image_cache)
-        4. placeholder image (None — caller handles fallback)
+        4. placeholder image
     """
+    gesture_name = _normalize_gesture_name(gesture_code_or_name)
     if not gesture_name:
-        return None
+        return str(PLACEHOLDER_IMAGE) if PLACEHOLDER_IMAGE.exists() else None
 
     slug = _slug(gesture_name)
 
     # --- 1. MP4 animations ---
     if len(gesture_name) == 1 and gesture_name.isalpha():
-        p = ASSET_ROOT / "alphabets" / f"{gesture_name.upper()}.mp4"
-        if p.exists():
-            return str(p)
+        for name in (gesture_name.upper(), gesture_name.lower()):
+            p = ASSET_ROOT / "alphabets" / f"{name}.mp4"
+            if p.exists():
+                return str(p)
 
     mp4_candidates = [
         ASSET_ROOT / "words" / f"{slug}.mp4",
         ASSET_ROOT / "alphabets" / f"{slug.upper()}.mp4",
+        ASSET_ROOT / "alphabets" / f"{slug.lower()}.mp4",
     ]
     for c in mp4_candidates:
         if c.exists():
@@ -84,6 +126,7 @@ def get_media_path(gesture_name: str) -> Optional[str]:
     gif_candidates = [
         ASSET_ROOT / "words" / f"{slug}.gif",
         ASSET_ROOT / "alphabets" / f"{slug}.gif",
+        ASSET_ROOT / "alphabets" / f"{slug.upper()}.gif",
     ]
     for c in gif_candidates:
         if c.exists():
@@ -94,15 +137,18 @@ def get_media_path(gesture_name: str) -> Optional[str]:
     if img is not None:
         return img
 
-    # --- 4. No media found ---
+    # --- 4. Placeholder image ---
+    if PLACEHOLDER_IMAGE.exists():
+        return str(PLACEHOLDER_IMAGE)
     return None
 
 
-def get_gesture_reference(gesture_name: str) -> Dict[str, str]:
+def get_gesture_reference(gesture_code_or_name: str) -> Dict[str, str]:
     """Return reference info (description, tips, difficulty) for a gesture.
 
     Always returns a dict with at least 'description' and 'tips' keys.
     """
+    gesture_name = _normalize_gesture_name(gesture_code_or_name)
     if not gesture_name:
         return {"description": "No gesture selected.", "tips": "", "difficulty": ""}
 
@@ -138,6 +184,6 @@ def get_gesture_reference(gesture_name: str) -> Dict[str, str]:
     }
 
 
-def get_gesture_description(gesture_name: str) -> str:
+def get_gesture_description(gesture_code_or_name: str) -> str:
     """Convenience: return just the description string."""
-    return get_gesture_reference(gesture_name).get("description", "")
+    return get_gesture_reference(gesture_code_or_name).get("description", "")

@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""Generate looping MP4 reference animations from cached gesture images.
+"""Generate looping MP4 reference animations from cached ISL gesture images.
 
-Reads the gesture catalog and produces a 2-second looping animation for each
+Reads the gesture catalog and produces a 3-second looping animation for each
 gesture using the corresponding PNG in ``data/assets/gestures/image_cache/``.
+The source cache is the project's ISL-only reference set.
 
 Usage::
 
@@ -39,8 +40,8 @@ WORDS_DIR = ASSET_ROOT / "words"
 
 RESOLUTION = 512
 FPS = 30
-DURATION_S = 2
-TOTAL_FRAMES = FPS * DURATION_S  # 60
+DURATION_S = 3
+TOTAL_FRAMES = FPS * DURATION_S  # 90
 
 ZOOM_START = 1.0
 ZOOM_END = 1.1
@@ -90,13 +91,76 @@ def _apply_glow(frame: np.ndarray) -> np.ndarray:
     return glow
 
 
+def _highlight_hand(frame: np.ndarray) -> np.ndarray:
+    """Draw a subtle contour highlight around probable hand pixels."""
+    hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+    mask1 = cv2.inRange(hsv, (0, 18, 40), (25, 255, 255))
+    mask2 = cv2.inRange(hsv, (160, 18, 40), (179, 255, 255))
+    mask = cv2.bitwise_or(mask1, mask2)
+    mask = cv2.medianBlur(mask, 7)
+    kernel = np.ones((5, 5), np.uint8)
+    mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
+
+    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    if not contours:
+        return frame
+
+    largest = max(contours, key=cv2.contourArea)
+    if cv2.contourArea(largest) < 1000:
+        return frame
+
+    overlay = frame.copy()
+    cv2.drawContours(overlay, [largest], -1, (74, 222, 128), 2, cv2.LINE_AA)
+    x, y, w, h = cv2.boundingRect(largest)
+    cv2.rectangle(overlay, (x, y), (x + w, y + h), (34, 197, 94), 1, cv2.LINE_AA)
+    return cv2.addWeighted(frame, 0.85, overlay, 0.15, 0)
+
+
+def _draw_motion_arrow(frame: np.ndarray, t: float) -> np.ndarray:
+    """Render a soft directional arrow to hint dynamic movement."""
+    overlay = frame.copy()
+    base_x = int(RESOLUTION * 0.18)
+    base_y = int(RESOLUTION * 0.86)
+    drift = int(18 * np.sin(2 * np.pi * t))
+    start = (base_x + drift, base_y)
+    end = (base_x + 120 + drift, base_y - 30)
+    cv2.arrowedLine(overlay, start, end, (21, 204, 250), 3, cv2.LINE_AA, tipLength=0.25)
+    cv2.putText(
+        overlay,
+        "ISL motion",
+        (start[0] - 2, start[1] - 12),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.45,
+        (148, 163, 184),
+        1,
+        cv2.LINE_AA,
+    )
+    return cv2.addWeighted(frame, 0.82, overlay, 0.18, 0)
+
+
+def _ensure_placeholder() -> None:
+    """Create a fallback placeholder image used by the media mapper."""
+    placeholder = ASSET_ROOT / "placeholder.png"
+    if placeholder.exists():
+        return
+    img = np.zeros((RESOLUTION, RESOLUTION, 3), dtype=np.uint8)
+    img[:] = (15, 23, 42)
+    cv2.rectangle(img, (24, 24), (RESOLUTION - 24, RESOLUTION - 24), (51, 65, 85), 2)
+    cv2.putText(img, "ISL Reference", (140, 236), cv2.FONT_HERSHEY_SIMPLEX, 0.95, (34, 197, 94), 2, cv2.LINE_AA)
+    cv2.putText(img, "Animation Missing", (126, 282), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (203, 213, 225), 2, cv2.LINE_AA)
+    placeholder.parent.mkdir(parents=True, exist_ok=True)
+    cv2.imwrite(str(placeholder), img)
+
+
 def _generate_animation(src_path: Path, dst_path: Path) -> bool:
-    """Generate a 2-second looping MP4 from a source image.
+    """Generate a 3-second looping MP4 from a source image.
 
     Effects applied per-frame:
     * slow zoom in (scale 1.0 → 1.1)
+    * hand contour highlight
+    * movement hint arrow
     * soft Gaussian glow
-    * subtle fade-in / fade-out for seamless looping
+    * subtle fade-in / fade-out for loop continuity
     """
     img = cv2.imread(str(src_path), cv2.IMREAD_COLOR)
     if img is None:
@@ -114,7 +178,7 @@ def _generate_animation(src_path: Path, dst_path: Path) -> bool:
         return False
 
     for i in range(TOTAL_FRAMES):
-        t = i / max(TOTAL_FRAMES - 1, 1)  # 0.0 → 1.0
+        t = i / max(TOTAL_FRAMES - 1, 1)  # 0.0 -> 1.0
 
         # ---- zoom ----
         scale = ZOOM_START + (ZOOM_END - ZOOM_START) * t
@@ -125,6 +189,8 @@ def _generate_animation(src_path: Path, dst_path: Path) -> bool:
 
         # ---- glow ----
         frame = _apply_glow(frame)
+        frame = _highlight_hand(frame)
+        frame = _draw_motion_arrow(frame, t)
 
         # ---- fade for seamless loop ----
         fade_frames = 8  # frames over which to fade
@@ -148,6 +214,7 @@ def _generate_animation(src_path: Path, dst_path: Path) -> bool:
 def main() -> None:
     ALPHABETS_DIR.mkdir(parents=True, exist_ok=True)
     WORDS_DIR.mkdir(parents=True, exist_ok=True)
+    _ensure_placeholder()
 
     gestures = all_gestures()
     generated = 0

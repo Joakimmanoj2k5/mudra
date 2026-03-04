@@ -6,11 +6,11 @@ import cv2
 def draw_overlay(frame, result: Dict[str, object], fps: float, target: str = ""):
     status = result.get("status", "")
     if status == "ok":
-        color = (52, 211, 153)  # green
+        color = (94, 197, 34)  # green
     elif status == "uncertain":
-        color = (45, 212, 245)  # yellow-ish cyan in BGR
+        color = (21, 204, 250)  # yellow in BGR
     else:
-        color = (248, 113, 113)  # red
+        color = (68, 68, 239)  # red
     label = result.get("label", "-")
     conf = result.get("confidence", 0.0)
     model = result.get("model_used", "-")

@@ -2,12 +2,11 @@ from __future__ import annotations
 
 import json
 import time
-from pathlib import Path
 from typing import Dict, List, Optional
 
 import cv2
 import numpy as np
-from PyQt5.QtCore import QThread, Qt, pyqtSignal
+from PyQt5.QtCore import QSize, QThread, Qt, pyqtSignal
 from PyQt5.QtGui import QColor, QFont, QImage, QPixmap
 from PyQt5.QtWidgets import (
     QCheckBox,
@@ -24,6 +23,7 @@ from PyQt5.QtWidgets import (
     QMessageBox,
     QPushButton,
     QStackedWidget,
+    QStyle,
     QTableWidget,
     QTableWidgetItem,
     QTextEdit,
@@ -38,7 +38,7 @@ from inference.overlay.draw import draw_overlay
 from ui.state.session import SessionState
 from utils.common.security import create_access_token, verify_password
 from utils.environment_check import check_environment
-from utils.gesture_media_mapper import get_media_path, get_gesture_reference, get_gesture_description, get_reference_image_path
+from utils.gesture_media_mapper import get_gesture_reference, get_media_path, get_reference_image_path
 from utils.io.config_loader import load_config, save_config
 
 
@@ -222,8 +222,90 @@ class MudraMainWindow(QMainWindow):
 
     def _theme(self) -> str:
         return """
-            QMainWindow { background-color: #0f172a; }
+            QMainWindow { background-color: #0f172a; color: #e2e8f0; }
+            QWidget { font-family: "Helvetica Neue"; color: #e2e8f0; }
             QLabel { color: #f8fafc; font-size: 13px; }
+
+            #Sidebar {
+                background-color: #111827;
+                border: 1px solid #1f2937;
+                border-radius: 18px;
+            }
+            #BrandTitle {
+                color: #22c55e;
+                font-size: 30px;
+                font-weight: 700;
+            }
+            #BrandSub {
+                color: #94a3b8;
+                font-size: 12px;
+            }
+            QPushButton#NavButton {
+                border-radius: 12px;
+                padding: 11px 12px;
+                font-weight: 600;
+                color: #cbd5e1;
+                background-color: transparent;
+                border: 1px solid transparent;
+                text-align: left;
+            }
+            QPushButton#NavButton:hover {
+                background-color: #1e293b;
+                border-color: #334155;
+                color: #f8fafc;
+            }
+            QPushButton#NavButton:checked {
+                background-color: #14532d;
+                border-color: #22c55e;
+                color: #dcfce7;
+            }
+            QPushButton#LogoutButton {
+                border-radius: 12px;
+                padding: 11px 12px;
+                color: #fca5a5;
+                background-color: #1f2937;
+                border: 1px solid #334155;
+                text-align: left;
+                font-weight: 700;
+            }
+            QPushButton#LogoutButton:hover {
+                background-color: #3f1d1d;
+                border-color: #ef4444;
+                color: #fecaca;
+            }
+
+            #CenterWrap {
+                background-color: #0b1220;
+                border: 1px solid #1e293b;
+                border-radius: 18px;
+            }
+            #FeedbackPanel {
+                background-color: #111827;
+                border: 1px solid #1f2937;
+                border-radius: 18px;
+            }
+            #InfoCard {
+                background-color: #1e293b;
+                border: 1px solid #334155;
+                border-radius: 14px;
+            }
+            #SectionTitle {
+                color: #f8fafc;
+                font-size: 15px;
+                font-weight: 700;
+            }
+            #SectionMeta {
+                color: #94a3b8;
+                font-size: 12px;
+            }
+            #StatusPill {
+                background-color: #1f2937;
+                border: 1px solid #334155;
+                border-radius: 12px;
+                padding: 6px 10px;
+                font-weight: 700;
+            }
+
             QPushButton {
                 border-radius: 10px;
                 padding: 10px;
@@ -234,12 +316,38 @@ class MudraMainWindow(QMainWindow):
                 font-size: 13px;
             }
             QPushButton:hover { background-color: #334155; }
+            QPushButton#AccentButton {
+                background-color: #166534;
+                border-color: #22c55e;
+                color: #dcfce7;
+            }
+            QPushButton#AccentButton:hover {
+                background-color: #15803d;
+                border-color: #4ade80;
+            }
+            QPushButton#GhostButton {
+                background-color: #0f172a;
+                border: 1px solid #334155;
+                color: #cbd5e1;
+            }
+            QPushButton#GhostButton:hover {
+                background-color: #1e293b;
+                color: #f1f5f9;
+            }
+
             QLineEdit {
                 border-radius: 8px;
                 border: 1px solid #334155;
                 padding: 8px;
                 background-color: #111827;
                 color: #f8fafc;
+            }
+            QTextEdit, QComboBox {
+                border-radius: 8px;
+                border: 1px solid #334155;
+                background-color: #111827;
+                color: #f8fafc;
+                padding: 6px;
             }
             QListWidget, QTableWidget {
                 background-color: #111827;
@@ -248,42 +356,81 @@ class MudraMainWindow(QMainWindow):
                 border-radius: 10px;
                 font-size: 12px;
             }
+            QListWidget::item {
+                padding: 8px;
+                border-radius: 8px;
+            }
+            QListWidget::item:selected {
+                background-color: #14532d;
+                color: #dcfce7;
+            }
+            QListWidget::item:hover {
+                background-color: #1e293b;
+            }
+            QHeaderView::section {
+                background-color: #0f172a;
+                color: #cbd5e1;
+                border: 1px solid #334155;
+                padding: 4px;
+            }
         """
 
     def _build_ui(self):
         central = QWidget()
         root = QHBoxLayout(central)
+        root.setContentsMargins(14, 14, 14, 14)
+        root.setSpacing(12)
         self.setCentralWidget(central)
 
         self.sidebar = QFrame()
+        self.sidebar.setObjectName("Sidebar")
         self.sidebar.setFixedWidth(220)
         sbl = QVBoxLayout(self.sidebar)
+        sbl.setContentsMargins(12, 14, 12, 14)
+        sbl.setSpacing(8)
+
         logo = QLabel("MUDRA")
+        logo.setObjectName("BrandTitle")
         logo.setFont(QFont(self.sys_font, 28, QFont.Bold))
-        logo.setStyleSheet("color:#10b981;")
+        logo_sub = QLabel("Interactive ISL Learning")
+        logo_sub.setObjectName("BrandSub")
         sbl.addWidget(logo)
+        sbl.addWidget(logo_sub)
+        sbl.addSpacing(8)
 
         nav = [
-            ("Dashboard", self.IDX_DASH),
-            ("Study", self.IDX_STUDY),
-            ("Practice", self.IDX_PRACTICE),
-            ("Quiz", self.IDX_QUIZ),
-            ("Analytics", self.IDX_ANALYTICS),
-            ("Admin", self.IDX_ADMIN),
+            ("Dashboard", self.IDX_DASH, QStyle.SP_DesktopIcon),
+            ("Study", self.IDX_STUDY, QStyle.SP_FileDialogContentsView),
+            ("Practice", self.IDX_PRACTICE, QStyle.SP_MediaPlay),
+            ("Quiz", self.IDX_QUIZ, QStyle.SP_FileDialogDetailedView),
+            ("Analytics", self.IDX_ANALYTICS, QStyle.SP_DriveHDIcon),
+            ("Admin", self.IDX_ADMIN, QStyle.SP_FileDialogInfoView),
         ]
         self.nav_buttons = {}
-        for title, idx in nav:
+        self._nav_index_map: Dict[int, QPushButton] = {}
+        for title, idx, icon_role in nav:
             b = QPushButton(title)
+            b.setObjectName("NavButton")
+            b.setCheckable(True)
+            b.setIcon(self.style().standardIcon(icon_role))
+            b.setIconSize(QSize(18, 18))
             b.clicked.connect(lambda _=False, i=idx: self.navigate_to(i))
             sbl.addWidget(b)
             self.nav_buttons[title] = b
+            self._nav_index_map[idx] = b
 
         self.btn_logout = QPushButton("Logout")
+        self.btn_logout.setObjectName("LogoutButton")
+        self.btn_logout.setIcon(self.style().standardIcon(QStyle.SP_DialogCloseButton))
         self.btn_logout.clicked.connect(self.logout)
         sbl.addStretch()
         sbl.addWidget(self.btn_logout)
 
-        content = QVBoxLayout()
+        content_wrap = QFrame()
+        content_wrap.setObjectName("CenterWrap")
+        content = QVBoxLayout(content_wrap)
+        content.setContentsMargins(12, 12, 12, 12)
+        content.setSpacing(10)
         self.status_bar_widget = self._build_env_header()
         content.addWidget(self.status_bar_widget)
 
@@ -298,23 +445,29 @@ class MudraMainWindow(QMainWindow):
         self.stack.addWidget(self._build_admin_page())
         content.addWidget(self.stack)
 
+        self.right_panel = self._build_feedback_panel()
         root.addWidget(self.sidebar)
-        content_wrap = QWidget()
-        content_wrap.setLayout(content)
-        root.addWidget(content_wrap)
+        root.addWidget(content_wrap, 1)
+        root.addWidget(self.right_panel)
         self.sidebar.setVisible(False)
+        self.right_panel.setVisible(False)
+        self.status_bar_widget.setVisible(False)
 
     def _build_env_header(self) -> QWidget:
         bar = QFrame()
-        bar.setStyleSheet("background:#111827; border:1px solid #334155; border-radius:10px;")
+        bar.setObjectName("InfoCard")
         l = QHBoxLayout(bar)
+        l.setContentsMargins(12, 8, 12, 8)
+        l.setSpacing(10)
         self.env_title = QLabel("Environment Health")
+        self.env_title.setObjectName("SectionTitle")
         self.env_mp = QLabel("MediaPipe")
         self.env_torch = QLabel("Torch")
         self.env_cam = QLabel("Camera")
         self.env_static = QLabel("StaticModel")
         self.env_dynamic = QLabel("DynamicModel")
         btn_refresh_env = QPushButton("Refresh")
+        btn_refresh_env.setObjectName("GhostButton")
         btn_refresh_env.setFixedWidth(100)
         btn_refresh_env.clicked.connect(self.refresh_environment_status)
 
@@ -326,14 +479,84 @@ class MudraMainWindow(QMainWindow):
         l.addWidget(btn_refresh_env)
         return bar
 
+    def _build_feedback_panel(self) -> QWidget:
+        panel = QFrame()
+        panel.setObjectName("FeedbackPanel")
+        panel.setFixedWidth(300)
+        l = QVBoxLayout(panel)
+        l.setContentsMargins(12, 12, 12, 12)
+        l.setSpacing(10)
+
+        title = QLabel("Live Feedback")
+        title.setObjectName("SectionTitle")
+        subtitle = QLabel("Session and recognition status")
+        subtitle.setObjectName("SectionMeta")
+        l.addWidget(title)
+        l.addWidget(subtitle)
+
+        card_session = QFrame()
+        card_session.setObjectName("InfoCard")
+        cs = QVBoxLayout(card_session)
+        cs.setContentsMargins(10, 10, 10, 10)
+        cs.setSpacing(6)
+        session_head = QLabel("Session")
+        session_head.setObjectName("SectionTitle")
+        self.feedback_user = QLabel("User: -")
+        self.feedback_mode = QLabel("Mode: Login")
+        self.feedback_target = QLabel("Target: -")
+        cs.addWidget(session_head)
+        cs.addWidget(self.feedback_user)
+        cs.addWidget(self.feedback_mode)
+        cs.addWidget(self.feedback_target)
+        l.addWidget(card_session)
+
+        card_infer = QFrame()
+        card_infer.setObjectName("InfoCard")
+        ci = QVBoxLayout(card_infer)
+        ci.setContentsMargins(10, 10, 10, 10)
+        ci.setSpacing(6)
+        infer_head = QLabel("Recognition")
+        infer_head.setObjectName("SectionTitle")
+        self.feedback_prediction = QLabel("Prediction: -")
+        self.feedback_conf = QLabel("Confidence: 0.00")
+        self.feedback_model = QLabel("Model: -")
+        self.feedback_fps = QLabel("FPS: 0.0")
+        self.feedback_status = QLabel("Status: idle")
+        self.feedback_status.setObjectName("StatusPill")
+        ci.addWidget(infer_head)
+        ci.addWidget(self.feedback_prediction)
+        ci.addWidget(self.feedback_conf)
+        ci.addWidget(self.feedback_model)
+        ci.addWidget(self.feedback_fps)
+        ci.addWidget(self.feedback_status)
+        l.addWidget(card_infer)
+
+        card_ref = QFrame()
+        card_ref.setObjectName("InfoCard")
+        cr = QVBoxLayout(card_ref)
+        cr.setContentsMargins(10, 10, 10, 10)
+        cr.setSpacing(6)
+        ref_head = QLabel("Reference")
+        ref_head.setObjectName("SectionTitle")
+        self.feedback_ref_status = QLabel("Reference: waiting")
+        self.feedback_ref_source = QLabel("Source: ISL local dataset")
+        cr.addWidget(ref_head)
+        cr.addWidget(self.feedback_ref_status)
+        cr.addWidget(self.feedback_ref_source)
+        l.addWidget(card_ref)
+        l.addStretch()
+        return panel
+
     def _build_login_page(self) -> QWidget:
         page = QWidget()
         l = QVBoxLayout(page)
         l.addStretch()
         form = QFrame()
+        form.setObjectName("InfoCard")
         form.setMaximumWidth(520)
-        form.setStyleSheet("background:#111827; border-radius:14px; border:1px solid #334155;")
         fl = QVBoxLayout(form)
+        fl.setContentsMargins(24, 22, 24, 22)
+        fl.setSpacing(10)
         title = QLabel("Login to MUDRA")
         title.setFont(QFont(self.sys_font, 28, QFont.Bold))
         self.login_email = QLineEdit()
@@ -391,17 +614,43 @@ class MudraMainWindow(QMainWindow):
 
     def _build_study_page(self) -> QWidget:
         page = QWidget()
-        layout = QVBoxLayout(page)
+        layout = QHBoxLayout(page)
+        layout.setContentsMargins(4, 4, 4, 4)
+        layout.setSpacing(10)
 
-        top = QHBoxLayout()
+        list_card = QFrame()
+        list_card.setObjectName("InfoCard")
+        ll = QVBoxLayout(list_card)
+        ll.setContentsMargins(10, 10, 10, 10)
+        ll.setSpacing(8)
+        ll.addWidget(QLabel("ISL Gesture Library"))
         self.study_gesture_list = QListWidget()
-        self.study_gesture_list.setMaximumHeight(140)
+        self.study_gesture_list.setMinimumWidth(240)
         self.study_gesture_list.itemSelectionChanged.connect(self.on_select_study_gesture)
-        top.addWidget(self.study_gesture_list, 2)
+        ll.addWidget(self.study_gesture_list)
+
+        center_card = QFrame()
+        center_card.setObjectName("InfoCard")
+        cl = QVBoxLayout(center_card)
+        cl.setContentsMargins(10, 10, 10, 10)
+        cl.setSpacing(8)
+        cl.addWidget(QLabel("Reference Animation"))
+        self.study_ref_label = QLabel("Select a gesture to see its reference")
+        self.study_ref_label.setAlignment(Qt.AlignCenter)
+        self.study_ref_label.setMinimumSize(460, 380)
+        self.study_ref_label.setWordWrap(True)
+        self.study_ref_label.setStyleSheet("background:#020617; border:1px solid #334155; border-radius:14px; padding:18px;")
+        self.study_ref_status = QLabel("Reference not available")
+        self.study_ref_status.setObjectName("SectionMeta")
+        cl.addWidget(self.study_ref_label, 1)
+        cl.addWidget(self.study_ref_status)
 
         info = QFrame()
-        info.setStyleSheet("background:#111827; border:1px solid #334155; border-radius:12px;")
+        info.setObjectName("InfoCard")
         il = QVBoxLayout(info)
+        il.setContentsMargins(10, 10, 10, 10)
+        il.setSpacing(8)
+        il.addWidget(QLabel("Gesture Details"))
         self.study_name = QLabel("Gesture: -")
         self.study_type = QLabel("Type: -")
         self.study_diff = QLabel("Difficulty: -")
@@ -412,42 +661,44 @@ class MudraMainWindow(QMainWindow):
         il.addWidget(self.study_type)
         il.addWidget(self.study_diff)
         il.addWidget(self.study_desc)
-        top.addWidget(info, 3)
-
-        layout.addLayout(top)
-
-        panel = QHBoxLayout()
-        self.study_ref_label = QLabel("Select a gesture to see its reference")
-        self.study_ref_label.setAlignment(Qt.AlignCenter)
-        self.study_ref_label.setMinimumHeight(360)
-        self.study_ref_label.setWordWrap(True)
-        self.study_ref_label.setStyleSheet("background:#000; border:1px solid #334155; border-radius:14px; padding:18px;")
-        self.study_ref_status = QLabel("Reference not available")
-
-        right = QVBoxLayout()
-        right.addWidget(self.study_ref_label)
-        right.addWidget(self.study_ref_status)
         self.btn_start_practice_from_study = QPushButton("Start Practice")
+        self.btn_start_practice_from_study.setObjectName("AccentButton")
         self.btn_start_practice_from_study.clicked.connect(self.start_practice_from_study)
-        right.addWidget(self.btn_start_practice_from_study)
-        panel.addLayout(right)
+        il.addWidget(self.btn_start_practice_from_study)
+        il.addStretch()
 
-        layout.addLayout(panel)
+        layout.addWidget(list_card, 2)
+        layout.addWidget(center_card, 4)
+        layout.addWidget(info, 3)
         return page
 
     def _build_practice_page(self) -> QWidget:
         page = QWidget()
         layout = QVBoxLayout(page)
+        layout.setContentsMargins(4, 4, 4, 4)
+        layout.setSpacing(10)
 
+        selector_card = QFrame()
+        selector_card.setObjectName("InfoCard")
+        sl = QVBoxLayout(selector_card)
+        sl.setContentsMargins(10, 10, 10, 10)
+        sl.setSpacing(8)
+        sl.addWidget(QLabel("Select Target Gesture"))
         self.practice_target_list = QListWidget()
-        self.practice_target_list.setMaximumHeight(120)
+        self.practice_target_list.setMaximumHeight(140)
         self.practice_target_list.itemSelectionChanged.connect(self.on_select_practice_gesture)
-        layout.addWidget(self.practice_target_list)
+        sl.addWidget(self.practice_target_list)
+        layout.addWidget(selector_card)
 
         split = QHBoxLayout()
+        split.setSpacing(10)
 
         # ---- Left panel: Reference Gesture ----
-        left = QVBoxLayout()
+        left_card = QFrame()
+        left_card.setObjectName("InfoCard")
+        left = QVBoxLayout(left_card)
+        left.setContentsMargins(10, 10, 10, 10)
+        left.setSpacing(8)
         ref_header = QLabel("Reference Gesture")
         ref_header.setFont(QFont(self.sys_font, 14, QFont.Bold))
         ref_header.setStyleSheet("color:#10b981;")
@@ -455,43 +706,65 @@ class MudraMainWindow(QMainWindow):
         left.addWidget(ref_header)
         self.practice_ref_label = QLabel("Reference not available")
         self.practice_ref_label.setAlignment(Qt.AlignCenter)
-        self.practice_ref_label.setMinimumSize(420, 320)
-        self.practice_ref_label.setStyleSheet("background:#000; border-radius:14px; border:1px solid #334155; padding:12px;")
+        self.practice_ref_label.setMinimumSize(420, 360)
+        self.practice_ref_label.setStyleSheet("background:#020617; border-radius:14px; border:1px solid #334155; padding:12px;")
         self.practice_ref_status = QLabel("Reference not available")
         self.practice_ref_status.setAlignment(Qt.AlignCenter)
+        self.practice_ref_status.setObjectName("SectionMeta")
         left.addWidget(self.practice_ref_label)
         left.addWidget(self.practice_ref_status)
 
         # ---- Right panel: Live Camera Recognition ----
-        right = QVBoxLayout()
+        right_card = QFrame()
+        right_card.setObjectName("InfoCard")
+        right = QVBoxLayout(right_card)
+        right.setContentsMargins(10, 10, 10, 10)
+        right.setSpacing(8)
         cam_header = QLabel("Live Camera Recognition")
         cam_header.setFont(QFont(self.sys_font, 14, QFont.Bold))
         cam_header.setStyleSheet("color:#38bdf8;")
         cam_header.setAlignment(Qt.AlignCenter)
         right.addWidget(cam_header)
         self.camera_view = QLabel("Camera preview")
-        self.camera_view.setMinimumSize(420, 320)
+        self.camera_view.setMinimumSize(420, 360)
         self.camera_view.setAlignment(Qt.AlignCenter)
-        self.camera_view.setStyleSheet("background:#000; border-radius:14px; border:1px solid #334155; padding:14px;")
+        self.camera_view.setStyleSheet("background:#020617; border-radius:14px; border:1px solid #334155; padding:14px;")
+        self.practice_target_stat = QLabel("Target: -")
+        self.practice_pred_stat = QLabel("Prediction: -")
+        self.practice_conf_stat = QLabel("Confidence: 0.00")
+        self.practice_model_stat = QLabel("Model: -")
+        self.practice_fps_stat = QLabel("FPS: 0.0")
         self.live_prediction = QLabel("Prediction: -")
         self.practice_feedback = QLabel("Select target and press Start Live Practice")
+        self.practice_feedback.setObjectName("StatusPill")
         self.btn_start_camera = QPushButton("Start Live Practice")
+        self.btn_start_camera.setObjectName("AccentButton")
         self.btn_stop_camera = QPushButton("Stop Camera")
+        self.btn_stop_camera.setObjectName("GhostButton")
         self.btn_mark_attempt = QPushButton("Record Current Attempt")
+        self.btn_mark_attempt.setObjectName("GhostButton")
 
         self.btn_start_camera.clicked.connect(self.start_camera)
         self.btn_stop_camera.clicked.connect(self.stop_camera)
         self.btn_mark_attempt.clicked.connect(self.record_current_attempt)
 
         right.addWidget(self.camera_view)
+        right.addWidget(self.practice_target_stat)
+        right.addWidget(self.practice_pred_stat)
+        right.addWidget(self.practice_conf_stat)
+        right.addWidget(self.practice_model_stat)
+        right.addWidget(self.practice_fps_stat)
         right.addWidget(self.live_prediction)
         right.addWidget(self.practice_feedback)
-        right.addWidget(self.btn_start_camera)
-        right.addWidget(self.btn_stop_camera)
+        btn_row = QHBoxLayout()
+        btn_row.setSpacing(8)
+        btn_row.addWidget(self.btn_start_camera)
+        btn_row.addWidget(self.btn_stop_camera)
+        right.addLayout(btn_row)
         right.addWidget(self.btn_mark_attempt)
 
-        split.addLayout(left, 1)
-        split.addLayout(right, 1)
+        split.addWidget(left_card, 1)
+        split.addWidget(right_card, 1)
         layout.addLayout(split)
         return page
 
@@ -619,20 +892,68 @@ class MudraMainWindow(QMainWindow):
     def _start_reference_threads(self):
         self.study_ref_thread = ReferenceVideoThread()
         self.study_ref_thread.frame_signal.connect(self._update_study_ref_frame)
-        self.study_ref_thread.status_signal.connect(self.study_ref_status.setText)
+        self.study_ref_thread.status_signal.connect(lambda msg: self._sync_reference_status(msg, "study"))
         self.study_ref_thread.start()
 
         self.practice_ref_thread = ReferenceVideoThread()
         self.practice_ref_thread.frame_signal.connect(self._update_practice_ref_frame)
-        self.practice_ref_thread.status_signal.connect(self.practice_ref_status.setText)
+        self.practice_ref_thread.status_signal.connect(lambda msg: self._sync_reference_status(msg, "practice"))
         self.practice_ref_thread.start()
 
     def _on_stack_changed(self, idx: int):
         if idx != self.IDX_STUDY:
             self._flush_study_timer()
+        if not hasattr(self, "right_panel") or not hasattr(self, "status_bar_widget"):
+            return
+        if idx == self.IDX_LOGIN:
+            self.status_bar_widget.setVisible(False)
+            self.right_panel.setVisible(False)
+            for button in self._nav_index_map.values():
+                button.setChecked(False)
+            return
+        self.status_bar_widget.setVisible(True)
+        self.right_panel.setVisible(True)
+        self.feedback_mode.setText(f"Mode: {self._mode_name(idx)}")
+        self._set_active_nav(idx)
 
     def navigate_to(self, idx: int):
         self.stack.setCurrentIndex(idx)
+
+    def _set_active_nav(self, idx: int) -> None:
+        for nav_idx, button in self._nav_index_map.items():
+            button.setChecked(nav_idx == idx)
+
+    def _mode_name(self, idx: int) -> str:
+        return {
+            self.IDX_LOGIN: "Login",
+            self.IDX_DASH: "Dashboard",
+            self.IDX_STUDY: "Study",
+            self.IDX_PRACTICE: "Practice",
+            self.IDX_QUIZ: "Quiz",
+            self.IDX_ANALYTICS: "Analytics",
+            self.IDX_ADMIN: "Admin",
+        }.get(idx, "Unknown")
+
+    def _sync_reference_status(self, message: str, source: str) -> None:
+        if source == "study":
+            self.study_ref_status.setText(message)
+        else:
+            self.practice_ref_status.setText(message)
+        self.feedback_ref_status.setText(f"Reference: {message}")
+
+    def _set_feedback_status(self, text: str, color: str) -> None:
+        self.feedback_status.setText(f"Status: {text}")
+        self.feedback_status.setStyleSheet(
+            f"background-color:#1f2937; border:1px solid {color}; border-radius:12px; "
+            f"padding:6px 10px; color:{color}; font-weight:700;"
+        )
+
+    def _set_practice_feedback(self, text: str, color: str) -> None:
+        self.practice_feedback.setText(text)
+        self.practice_feedback.setStyleSheet(
+            f"background-color:#0f172a; border:1px solid {color}; border-radius:12px; "
+            f"padding:6px 10px; color:{color}; font-weight:700;"
+        )
 
     def _apply_environment_status(self):
         self._set_indicator(self.env_mp, "MediaPipe", self.env_status.get("mediapipe", False))
@@ -646,9 +967,11 @@ class MudraMainWindow(QMainWindow):
             self.btn_start_camera.setEnabled(can_practice)
             if not can_practice:
                 self.btn_start_camera.setText("Start Live Practice (Unavailable)")
-                self.practice_feedback.setText("Practice disabled: MediaPipe and camera are required.")
+                self._set_practice_feedback("Practice disabled: MediaPipe and camera are required.", "#ef4444")
+                self._set_feedback_status("Practice unavailable", "#ef4444")
             else:
                 self.btn_start_camera.setText("Start Live Practice")
+                self._set_feedback_status("Ready", "#22c55e")
 
     @staticmethod
     def _set_indicator(label: QLabel, name: str, ok: bool):
@@ -675,14 +998,21 @@ class MudraMainWindow(QMainWindow):
         self.session.token = create_access_token(row["user_id"])
 
         self.sidebar.setVisible(True)
+        self.right_panel.setVisible(True)
+        self.status_bar_widget.setVisible(True)
         self.navigate_to(self.IDX_DASH)
         self.welcome.setText(f"Welcome, {self.session.full_name}")
+        self.feedback_user.setText(f"User: {self.session.full_name}")
+        self.feedback_mode.setText("Mode: Dashboard")
+        self.feedback_target.setText("Target: -")
+        self._set_feedback_status("Ready", "#22c55e")
         self.refresh_after_login()
 
     def refresh_after_login(self):
         gestures = [dict(g) for g in self.db.get_gestures()]
         self.gesture_rows = gestures
         self.lesson_summary.setText(f"Lessons ready: 3 | Gestures loaded: {len(gestures)}")
+        self.feedback_ref_source.setText("Source: ISL local dataset (cached)")
 
         self.study_gesture_list.clear()
         self.practice_target_list.clear()
@@ -698,7 +1028,17 @@ class MudraMainWindow(QMainWindow):
         self.stop_camera()
         self._flush_study_timer()
         self.session = SessionState()
+        self.feedback_user.setText("User: -")
+        self.feedback_mode.setText("Mode: Login")
+        self.feedback_target.setText("Target: -")
+        self.feedback_prediction.setText("Prediction: -")
+        self.feedback_conf.setText("Confidence: 0.00")
+        self.feedback_model.setText("Model: -")
+        self.feedback_fps.setText("FPS: 0.0")
+        self._set_feedback_status("Logged out", "#facc15")
         self.sidebar.setVisible(False)
+        self.right_panel.setVisible(False)
+        self.status_bar_widget.setVisible(False)
         self.navigate_to(self.IDX_LOGIN)
 
     def _difficulty_for(self, gesture: Dict[str, object]) -> str:
@@ -781,21 +1121,23 @@ class MudraMainWindow(QMainWindow):
         if tips:
             full_desc += f"\n\n💡 Tips: {tips}"
         self.study_desc.setText(full_desc)
+        self.feedback_target.setText(f"Target: {g['display_name']} [{g['gesture_mode']}]")
 
-        media_path = get_media_path(str(g["display_name"]))
+        media_path = get_media_path(str(g.get("gesture_code") or g["display_name"]))
         if media_path and media_path.lower().endswith((".mp4", ".gif")):
             # Video / animated media — hand off to the looping reference thread
             self.study_ref_thread.set_media(media_path)
-            self.study_ref_status.setText("▶ Loading reference animation…")
+            self._sync_reference_status("Loading reference animation...", "study")
         elif media_path and media_path.lower().endswith((".png", ".jpg", ".jpeg", ".webp")):
             # Static image — display directly, stop video thread
             self.study_ref_thread.set_media(None)
             self._load_static_media(self.study_ref_label, media_path)
-            self.study_ref_status.setText("Showing reference image")
+            self._sync_reference_status("Showing reference image", "study")
         else:
             # No media at all — show text fallback
             self.study_ref_thread.set_media(None)
             self._show_text_reference(self.study_ref_label, str(g["display_name"]), ref_info)
+            self._sync_reference_status("Showing placeholder reference", "study")
         self._study_gesture_id = str(g["gesture_id"])
         self._study_started_at = time.time()
 
@@ -826,23 +1168,29 @@ class MudraMainWindow(QMainWindow):
         row = dict(self.gesture_rows[idx])
         self.selected_gesture = row
 
-        media_path = get_media_path(str(row["display_name"]))
+        media_path = get_media_path(str(row.get("gesture_code") or row["display_name"]))
         if media_path and media_path.lower().endswith((".mp4", ".gif")):
             self.practice_ref_thread.set_media(media_path)
-            self.practice_ref_status.setText("▶ Loading reference animation…")
+            self._sync_reference_status("Loading reference animation...", "practice")
         elif media_path and media_path.lower().endswith((".png", ".jpg", ".jpeg", ".webp")):
             self.practice_ref_thread.set_media(None)
             self._load_static_media(self.practice_ref_label, media_path)
-            self.practice_ref_status.setText("Showing reference image")
+            self._sync_reference_status("Showing reference image", "practice")
         else:
             self.practice_ref_thread.set_media(None)
             ref_info = get_gesture_reference(str(row["display_name"]))
             self._show_text_reference(self.practice_ref_label, str(row["display_name"]), ref_info)
+            self._sync_reference_status("Showing placeholder reference", "practice")
 
-        self.practice_feedback.setText(f"Target selected: {row['display_name']} [{row['gesture_mode']}]")
+        self.practice_target_stat.setText(f"Target: {row['display_name']}")
+        self.feedback_target.setText(f"Target: {row['display_name']} [{row['gesture_mode']}]")
+        self._set_practice_feedback(f"Target selected: {row['display_name']} [{row['gesture_mode']}]", "#22c55e")
         if self.inference_thread:
             self.inference_thread.set_target(str(row["display_name"]))
             self.inference_thread.set_target_mode(str(row["gesture_mode"]))
+        else:
+            if self.env_status.get("mediapipe") and self.env_status.get("camera"):
+                self.start_camera()
 
     def start_camera(self):
         if not (self.env_status.get("mediapipe") and self.env_status.get("camera")):
@@ -860,11 +1208,14 @@ class MudraMainWindow(QMainWindow):
         self.inference_thread.frame_signal.connect(self.update_camera_view)
         self.inference_thread.result_signal.connect(self.update_result)
         self.inference_thread.start()
+        self._set_feedback_status("Camera started", "#22c55e")
 
     def stop_camera(self):
         if self.inference_thread:
             self.inference_thread.stop()
             self.inference_thread = None
+            self._set_feedback_status("Camera stopped", "#facc15")
+            self._set_practice_feedback("Camera stopped.", "#facc15")
 
     def update_camera_view(self, qimg: QImage):
         self._last_qimage = qimg
@@ -895,37 +1246,45 @@ class MudraMainWindow(QMainWindow):
             f"Target: {self.selected_gesture['display_name'] if self.selected_gesture else '-'} | "
             f"Model: {model_used} | Confidence: {conf:.2f} | FPS: {fps:.1f}"
         )
+        self.practice_pred_stat.setText(f"Prediction: {label}")
+        self.practice_conf_stat.setText(f"Confidence: {conf:.2f}")
+        self.practice_model_stat.setText(f"Model: {model_used}")
+        self.practice_fps_stat.setText(f"FPS: {fps:.1f}")
+        self.feedback_prediction.setText(f"Prediction: {label}")
+        self.feedback_conf.setText(f"Confidence: {conf:.2f}")
+        self.feedback_model.setText(f"Model: {model_used}")
+        self.feedback_fps.setText(f"FPS: {fps:.1f}")
 
         if warn:
-            self.practice_feedback.setText(warn)
-            self.practice_feedback.setStyleSheet("color:#fbbf24; font-weight:600;")
+            self._set_practice_feedback(warn, "#facc15")
+            self._set_feedback_status("Low FPS", "#facc15")
             return
 
         if self.selected_gesture and status in {"ok", "uncertain"}:
             target = self.selected_gesture["display_name"]
             if stable and label == target:
-                self.practice_feedback.setText("Correct and stable")
-                self.practice_feedback.setStyleSheet("color:#34d399; font-weight:700;")
+                self._set_practice_feedback("Correct and stable", "#22c55e")
+                self._set_feedback_status("Correct", "#22c55e")
             elif status == "uncertain":
-                self.practice_feedback.setText("Hold steady. Confidence not stable yet.")
-                self.practice_feedback.setStyleSheet("color:#fbbf24; font-weight:600;")
+                self._set_practice_feedback("Hold steady. Confidence not stable yet.", "#facc15")
+                self._set_feedback_status("Uncertain", "#facc15")
             else:
-                self.practice_feedback.setText(f"Incorrect. Predicted {label}, target {target}")
-                self.practice_feedback.setStyleSheet("color:#f87171; font-weight:700;")
+                self._set_practice_feedback(f"Incorrect. Predicted {label}, target {target}", "#ef4444")
+                self._set_feedback_status("Incorrect", "#ef4444")
         elif status in {"mediapipe_unavailable", "dynamic_model_unavailable"}:
             env_text = (
                 f"Environment: MediaPipe: {'❌' if not self.env_status.get('mediapipe') else '✅'} | "
                 f"Torch: {'✅' if self.env_status.get('torch') else '❌'} | "
                 f"Camera: {'✅' if self.env_status.get('camera') else '❌'}"
             )
-            self.practice_feedback.setText(env_text)
-            self.practice_feedback.setStyleSheet("color:#f87171; font-weight:700;")
+            self._set_practice_feedback(env_text, "#ef4444")
+            self._set_feedback_status("Environment error", "#ef4444")
         elif status == "no_hand":
-            self.practice_feedback.setText("No hand detected. Place hand in frame.")
-            self.practice_feedback.setStyleSheet("color:#fbbf24; font-weight:600;")
+            self._set_practice_feedback("No hand detected. Place hand in frame.", "#facc15")
+            self._set_feedback_status("No hand", "#facc15")
         elif status == "camera_error":
-            self.practice_feedback.setText("Camera error. Restart camera.")
-            self.practice_feedback.setStyleSheet("color:#f87171; font-weight:700;")
+            self._set_practice_feedback("Camera error. Restart camera.", "#ef4444")
+            self._set_feedback_status("Camera error", "#ef4444")
 
     def record_current_attempt(self):
         if not self.session.is_authenticated() or not self.selected_gesture or not self.current_result:
@@ -948,7 +1307,7 @@ class MudraMainWindow(QMainWindow):
             fps=fps,
             attempt_mode="practice",
         )
-        self.practice_feedback.setText(f"Attempt recorded | correct={is_correct}")
+        self._set_practice_feedback(f"Attempt recorded | correct={is_correct}", "#22c55e" if is_correct else "#ef4444")
         self.load_analytics()
 
     def start_quiz(self):
