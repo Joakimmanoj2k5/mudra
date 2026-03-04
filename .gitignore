@@ -54,6 +54,10 @@ data/processed/
 # Train/val/test index splits
 data/splits/
 
+# Numpy artifact safety net (catches any stray files outside the above dirs)
+*.npy
+*.npz
+
 # Gesture image cache (generated at runtime)
 data/assets/gestures/image_cache/
 
