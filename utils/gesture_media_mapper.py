@@ -53,24 +53,48 @@ def get_reference_image_path(gesture_name: str) -> Optional[str]:
 
 
 def get_media_path(gesture_name: str) -> Optional[str]:
-    """Return path to a local video file for the gesture, or None."""
+    """Return the best available media file for *gesture_name*.
+
+    Priority order:
+        1. mp4 animation (generated reference)
+        2. gif animation
+        3. cached png image (from image_cache)
+        4. placeholder image (None — caller handles fallback)
+    """
     if not gesture_name:
         return None
 
+    slug = _slug(gesture_name)
+
+    # --- 1. MP4 animations ---
     if len(gesture_name) == 1 and gesture_name.isalpha():
         p = ASSET_ROOT / "alphabets" / f"{gesture_name.upper()}.mp4"
         if p.exists():
             return str(p)
 
-    slug = _slug(gesture_name)
-    candidates = [
+    mp4_candidates = [
         ASSET_ROOT / "words" / f"{slug}.mp4",
-        ASSET_ROOT / "words" / f"{slug}.gif",
         ASSET_ROOT / "alphabets" / f"{slug.upper()}.mp4",
     ]
-    for c in candidates:
+    for c in mp4_candidates:
         if c.exists():
             return str(c)
+
+    # --- 2. GIF animations ---
+    gif_candidates = [
+        ASSET_ROOT / "words" / f"{slug}.gif",
+        ASSET_ROOT / "alphabets" / f"{slug}.gif",
+    ]
+    for c in gif_candidates:
+        if c.exists():
+            return str(c)
+
+    # --- 3. Cached PNG image ---
+    img = get_reference_image_path(gesture_name)
+    if img is not None:
+        return img
+
+    # --- 4. No media found ---
     return None
 
 

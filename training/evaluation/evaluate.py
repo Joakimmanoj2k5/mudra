@@ -6,6 +6,8 @@ import argparse
 import json
 from pathlib import Path
 
+import matplotlib
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -85,6 +87,7 @@ def main():
     ax.set_title("Static Model Confusion Matrix")
     fig.tight_layout()
     fig.savefig(outdir / "confusion_static_v001.png")
+    plt.close(fig)
     print(metrics)
 
 

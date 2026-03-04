@@ -1,12 +1,82 @@
+# =============================================================================
+# MUDRA – Git Ignore
+# =============================================================================
+
+# --- Python ---
 __pycache__/
 *.pyc
-.venv/
+*.pyo
+*.pyd
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# --- Virtual environments ---
 mudra_env/
+venv/
+.venv/
+.env/
+env/
+
+# --- OS files ---
+.DS_Store
+.DS_Store?
+._*
+Thumbs.db
+ehthumbs.db
+
+# --- Logs ---
+*.log
 logs/
-database/*.db
-models/**/*.pt
-models/mediapipe/*.task
-models/registry/*.png
-models/registry/*.csv
-backups/*.db
+
+# --- Jupyter ---
+.ipynb_checkpoints/
+
+# --- IDE ---
+.idea/
+*.swp
+*.swo
+
+# =============================================================================
+# Data artifacts (generated during training — not version controlled)
+# =============================================================================
+
+# Raw augmented training images
+data/raw/
+
+# Intermediate landmark .npy files + manifest
+data/interim/
+
+# Compiled dataset splits (.npz)
+data/processed/
+
+# Train/val/test index splits
+data/splits/
+
+# Gesture image cache (generated at runtime)
 data/assets/gestures/image_cache/
+
+# =============================================================================
+# Temporary / backup files
+# =============================================================================
+backups/
+*.ckpt
+*.pt.tmp
+*.db.bak
+
+# =============================================================================
+# Database (runtime state, not source-controlled)
+# =============================================================================
+database/*.db
+
+# =============================================================================
+# NOTE: The following are intentionally NOT ignored and will be committed:
+#   models/static/static_mlp_v001.pt
+#   models/dynamic/dynamic_bigru_v001.pt
+#   models/registry/*.json      (label_map, norm_stats, metrics, evaluation)
+#   models/registry/*.csv       (confusion matrices, per-class metrics)
+#   models/registry/*.png       (confusion matrix visualisations)
+#   models/mediapipe/*.task     (MediaPipe hand landmarker model)
+#   data/assets/gestures/       (reference gesture images for the UI)
+# =============================================================================

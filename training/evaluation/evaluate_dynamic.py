@@ -6,6 +6,8 @@ import argparse
 import json
 from pathlib import Path
 
+import matplotlib
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -82,6 +84,7 @@ def main():
     ax.set_title("Dynamic Model Confusion Matrix")
     fig.tight_layout()
     fig.savefig(outdir / "confusion_dynamic_v001.png")
+    plt.close(fig)
     print({"accuracy": float(acc), "precision": float(p), "recall": float(r), "f1_score": float(f1)})
 
 

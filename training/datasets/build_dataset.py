@@ -50,6 +50,7 @@ def main():
     X_seq = []
     y_seq = []
     dynamic_names = _dynamic_class_names()
+    has_dynamic = False
 
     for _, row in df.iterrows():
         arr = np.load(row["file"])
@@ -79,6 +80,7 @@ def main():
     np.savez(out / "static_split_v1.npz", X_train=X_train, y_train=y_train, X_val=X_val, y_val=y_val, X_test=X_test, y_test=y_test)
 
     if X_seq:
+        has_dynamic = True
         X_seq = np.array(X_seq, dtype=np.float32)
         y_seq = np.array(y_seq, dtype=np.int64)
         X_train_d, X_tmp_d, y_train_d, y_tmp_d = train_test_split(
@@ -100,7 +102,7 @@ def main():
     Path("models/registry").mkdir(parents=True, exist_ok=True)
     Path("models/registry/label_map.json").write_text(json.dumps({k: v for k, v in class_map.items()}, indent=2), encoding="utf-8")
     print("Saved data/processed/static_split_v1.npz")
-    if X_seq:
+    if has_dynamic:
         print("Saved data/processed/dynamic_split_v1.npz")
     else:
         print("No dynamic sequences were found in manifest; skipped dynamic split.")

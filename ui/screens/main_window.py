@@ -445,18 +445,32 @@ class MudraMainWindow(QMainWindow):
         layout.addWidget(self.practice_target_list)
 
         split = QHBoxLayout()
+
+        # ---- Left panel: Reference Gesture ----
         left = QVBoxLayout()
+        ref_header = QLabel("Reference Gesture")
+        ref_header.setFont(QFont(self.sys_font, 14, QFont.Bold))
+        ref_header.setStyleSheet("color:#10b981;")
+        ref_header.setAlignment(Qt.AlignCenter)
+        left.addWidget(ref_header)
         self.practice_ref_label = QLabel("Reference not available")
         self.practice_ref_label.setAlignment(Qt.AlignCenter)
-        self.practice_ref_label.setMinimumSize(360, 260)
+        self.practice_ref_label.setMinimumSize(420, 320)
         self.practice_ref_label.setStyleSheet("background:#000; border-radius:14px; border:1px solid #334155; padding:12px;")
         self.practice_ref_status = QLabel("Reference not available")
+        self.practice_ref_status.setAlignment(Qt.AlignCenter)
         left.addWidget(self.practice_ref_label)
         left.addWidget(self.practice_ref_status)
 
+        # ---- Right panel: Live Camera Recognition ----
         right = QVBoxLayout()
+        cam_header = QLabel("Live Camera Recognition")
+        cam_header.setFont(QFont(self.sys_font, 14, QFont.Bold))
+        cam_header.setStyleSheet("color:#38bdf8;")
+        cam_header.setAlignment(Qt.AlignCenter)
+        right.addWidget(cam_header)
         self.camera_view = QLabel("Camera preview")
-        self.camera_view.setMinimumSize(460, 320)
+        self.camera_view.setMinimumSize(420, 320)
         self.camera_view.setAlignment(Qt.AlignCenter)
         self.camera_view.setStyleSheet("background:#000; border-radius:14px; border:1px solid #334155; padding:14px;")
         self.live_prediction = QLabel("Prediction: -")
@@ -477,7 +491,7 @@ class MudraMainWindow(QMainWindow):
         right.addWidget(self.btn_mark_attempt)
 
         split.addLayout(left, 1)
-        split.addLayout(right, 2)
+        split.addLayout(right, 1)
         layout.addLayout(split)
         return page
 
@@ -738,6 +752,17 @@ class MudraMainWindow(QMainWindow):
             "padding:18px; font-family:sans-serif;"
         )
 
+    def _load_static_media(self, label: QLabel, media_path: str) -> None:
+        """Display a static image (png/jpg) on a QLabel."""
+        pixmap = QPixmap(media_path)
+        if not pixmap.isNull():
+            scaled = pixmap.scaled(label.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation)
+            label.setPixmap(scaled)
+            label.setAlignment(Qt.AlignCenter)
+            label.setStyleSheet(
+                "background:#111827; border:1px solid #334155; border-radius:14px; padding:8px;"
+            )
+
     def on_select_study_gesture(self):
         idx = self.study_gesture_list.currentRow()
         if idx < 0 or idx >= len(self.gesture_rows):
@@ -758,8 +783,18 @@ class MudraMainWindow(QMainWindow):
         self.study_desc.setText(full_desc)
 
         media_path = get_media_path(str(g["display_name"]))
-        self.study_ref_thread.set_media(media_path)
-        if media_path is None:
+        if media_path and media_path.lower().endswith((".mp4", ".gif")):
+            # Video / animated media — hand off to the looping reference thread
+            self.study_ref_thread.set_media(media_path)
+            self.study_ref_status.setText("▶ Loading reference animation…")
+        elif media_path and media_path.lower().endswith((".png", ".jpg", ".jpeg", ".webp")):
+            # Static image — display directly, stop video thread
+            self.study_ref_thread.set_media(None)
+            self._load_static_media(self.study_ref_label, media_path)
+            self.study_ref_status.setText("Showing reference image")
+        else:
+            # No media at all — show text fallback
+            self.study_ref_thread.set_media(None)
             self._show_text_reference(self.study_ref_label, str(g["display_name"]), ref_info)
         self._study_gesture_id = str(g["gesture_id"])
         self._study_started_at = time.time()
@@ -792,8 +827,15 @@ class MudraMainWindow(QMainWindow):
         self.selected_gesture = row
 
         media_path = get_media_path(str(row["display_name"]))
-        self.practice_ref_thread.set_media(media_path)
-        if media_path is None:
+        if media_path and media_path.lower().endswith((".mp4", ".gif")):
+            self.practice_ref_thread.set_media(media_path)
+            self.practice_ref_status.setText("▶ Loading reference animation…")
+        elif media_path and media_path.lower().endswith((".png", ".jpg", ".jpeg", ".webp")):
+            self.practice_ref_thread.set_media(None)
+            self._load_static_media(self.practice_ref_label, media_path)
+            self.practice_ref_status.setText("Showing reference image")
+        else:
+            self.practice_ref_thread.set_media(None)
             ref_info = get_gesture_reference(str(row["display_name"]))
             self._show_text_reference(self.practice_ref_label, str(row["display_name"]), ref_info)
 
