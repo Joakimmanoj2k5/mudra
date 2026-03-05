@@ -6,7 +6,7 @@ from typing import Dict, List, Optional
 
 import cv2
 import numpy as np
-from PyQt5.QtCore import QSize, QThread, Qt, pyqtSignal
+from PyQt5.QtCore import QSize, QThread, QTimer, Qt, pyqtSignal
 from PyQt5.QtGui import QColor, QFont, QImage, QPixmap
 from PyQt5.QtWidgets import (
     QCheckBox,
@@ -38,7 +38,7 @@ from inference.overlay.draw import draw_overlay
 from ui.state.session import SessionState
 from utils.common.security import create_access_token, verify_password
 from utils.environment_check import check_environment
-from utils.gesture_media_mapper import get_gesture_reference, get_media_path, get_reference_image_path
+from utils.gesture_media_mapper import get_gesture_reference, get_media_path
 from utils.io.config_loader import load_config, save_config
 
 
@@ -60,7 +60,7 @@ class ReferenceVideoThread(QThread):
         while self._run_flag:
             if not self.media_path:
                 if self._media_changed:
-                    self.status_signal.emit("Text reference shown (no video)")
+                    self.status_signal.emit("Reference video not available")
                     self._media_changed = False
                 time.sleep(0.5)
                 continue
@@ -87,7 +87,7 @@ class ReferenceVideoThread(QThread):
                 rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                 h, w, ch = rgb.shape
                 qimg = QImage(rgb.data, w, h, ch * w, QImage.Format_RGB888)
-                self.frame_signal.emit(qimg)
+                self.frame_signal.emit(qimg.copy())
                 time.sleep(sleep_s)
             cap.release()
 
@@ -119,17 +119,47 @@ class InferenceThread(QThread):
 
     def run(self):
         fail_count = 0
-        if not self.camera.open():
-            self.result_signal.emit({"status": "camera_error", "label": "CAMERA_ERROR", "confidence": 0.0, "latency_ms": 0})
+        retry_count = 0
+        max_retries = 3
+        while retry_count < max_retries:
+            if self.camera.open():
+                break
+            retry_count += 1
+            time.sleep(0.5)
+        else:
+            self.result_signal.emit({
+                "status": "camera_error",
+                "label": "CAMERA_ERROR",
+                "confidence": 0.0,
+                "latency_ms": 0,
+                "fps": 0.0,
+                "model_used": "-",
+                "stable": False,
+                "perf_warning": "Camera could not be opened. Check permissions and connections.",
+            })
             return
 
         while self._run_flag:
-            packet = self.camera.read()
+            try:
+                packet = self.camera.read()
+            except Exception:
+                packet = None
+
             if packet is None:
                 fail_count += 1
-                if fail_count > 20:
-                    self.result_signal.emit({"status": "camera_error", "label": "CAMERA_DISCONNECTED", "confidence": 0.0, "latency_ms": 0})
+                if fail_count > 30:
+                    self.result_signal.emit({
+                        "status": "camera_error",
+                        "label": "CAMERA_DISCONNECTED",
+                        "confidence": 0.0,
+                        "latency_ms": 0,
+                        "fps": 0.0,
+                        "model_used": "-",
+                        "stable": False,
+                        "perf_warning": "",
+                    })
                     break
+                time.sleep(0.05)
                 continue
 
             fail_count = 0
@@ -147,7 +177,7 @@ class InferenceThread(QThread):
             rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             h, w, ch = rgb.shape
             qimg = QImage(rgb.data, w, h, ch * w, QImage.Format_RGB888)
-            self.frame_signal.emit(qimg)
+            self.frame_signal.emit(qimg.copy())
 
             emit_result = {
                 "status": display_result.get("status"),
@@ -222,12 +252,18 @@ class MudraMainWindow(QMainWindow):
 
     def _theme(self) -> str:
         return """
-            QMainWindow { background-color: #0f172a; color: #e2e8f0; }
-            QWidget { font-family: "Helvetica Neue"; color: #e2e8f0; }
-            QLabel { color: #f8fafc; font-size: 13px; }
+            QMainWindow {
+                background-color: #05070a;
+                color: #e5e7eb;
+            }
+            QWidget {
+                font-family: "Helvetica Neue";
+                color: #e5e7eb;
+            }
+            QLabel { color: #e5e7eb; font-size: 13px; }
 
             #Sidebar {
-                background-color: #111827;
+                background-color: #0b0e14;
                 border: 1px solid #1f2937;
                 border-radius: 18px;
             }
@@ -250,43 +286,48 @@ class MudraMainWindow(QMainWindow):
                 text-align: left;
             }
             QPushButton#NavButton:hover {
-                background-color: #1e293b;
-                border-color: #334155;
+                background-color: #121822;
+                border-color: #263241;
                 color: #f8fafc;
             }
             QPushButton#NavButton:checked {
-                background-color: #14532d;
+                background-color: #12351d;
                 border-color: #22c55e;
                 color: #dcfce7;
             }
             QPushButton#LogoutButton {
                 border-radius: 12px;
                 padding: 11px 12px;
-                color: #fca5a5;
-                background-color: #1f2937;
-                border: 1px solid #334155;
+                color: #fecaca;
+                background-color: #3f1d1d;
+                border: 1px solid #ef4444;
                 text-align: left;
                 font-weight: 700;
             }
             QPushButton#LogoutButton:hover {
-                background-color: #3f1d1d;
+                background-color: #5c2323;
                 border-color: #ef4444;
-                color: #fecaca;
+                color: #ffe4e6;
             }
 
             #CenterWrap {
-                background-color: #0b1220;
-                border: 1px solid #1e293b;
+                background-color: qlineargradient(
+                    x1: 0, y1: 0, x2: 1, y2: 1,
+                    stop: 0 #060a10,
+                    stop: 0.55 #0a0f17,
+                    stop: 1 #101726
+                );
+                border: 1px solid #1f2937;
                 border-radius: 18px;
             }
             #FeedbackPanel {
-                background-color: #111827;
+                background-color: #0a0f17;
                 border: 1px solid #1f2937;
                 border-radius: 18px;
             }
             #InfoCard {
-                background-color: #1e293b;
-                border: 1px solid #334155;
+                background-color: #121826;
+                border: 1px solid #2a3446;
                 border-radius: 14px;
             }
             #SectionTitle {
@@ -299,7 +340,7 @@ class MudraMainWindow(QMainWindow):
                 font-size: 12px;
             }
             #StatusPill {
-                background-color: #1f2937;
+                background-color: #0b0f18;
                 border: 1px solid #334155;
                 border-radius: 12px;
                 padding: 6px 10px;
@@ -311,13 +352,13 @@ class MudraMainWindow(QMainWindow):
                 padding: 10px;
                 font-weight: 600;
                 color: #e2e8f0;
-                background-color: #1e293b;
+                background-color: #1a2334;
                 border: 1px solid #334155;
                 font-size: 13px;
             }
-            QPushButton:hover { background-color: #334155; }
+            QPushButton:hover { background-color: #263348; }
             QPushButton#AccentButton {
-                background-color: #166534;
+                background-color: #16a34a;
                 border-color: #22c55e;
                 color: #dcfce7;
             }
@@ -326,31 +367,31 @@ class MudraMainWindow(QMainWindow):
                 border-color: #4ade80;
             }
             QPushButton#GhostButton {
-                background-color: #0f172a;
+                background-color: #111827;
                 border: 1px solid #334155;
                 color: #cbd5e1;
             }
             QPushButton#GhostButton:hover {
                 background-color: #1e293b;
-                color: #f1f5f9;
+                color: #f8fafc;
             }
 
             QLineEdit {
                 border-radius: 8px;
                 border: 1px solid #334155;
                 padding: 8px;
-                background-color: #111827;
+                background-color: #0b1220;
                 color: #f8fafc;
             }
             QTextEdit, QComboBox {
                 border-radius: 8px;
                 border: 1px solid #334155;
-                background-color: #111827;
+                background-color: #0b1220;
                 color: #f8fafc;
                 padding: 6px;
             }
             QListWidget, QTableWidget {
-                background-color: #111827;
+                background-color: #0b1220;
                 color: #e2e8f0;
                 border: 1px solid #334155;
                 border-radius: 10px;
@@ -368,7 +409,7 @@ class MudraMainWindow(QMainWindow):
                 background-color: #1e293b;
             }
             QHeaderView::section {
-                background-color: #0f172a;
+                background-color: #111827;
                 color: #cbd5e1;
                 border: 1px solid #334155;
                 padding: 4px;
@@ -539,7 +580,7 @@ class MudraMainWindow(QMainWindow):
         ref_head = QLabel("Reference")
         ref_head.setObjectName("SectionTitle")
         self.feedback_ref_status = QLabel("Reference: waiting")
-        self.feedback_ref_source = QLabel("Source: ISL local dataset")
+        self.feedback_ref_source = QLabel("Source: isl_videos (local)")
         cr.addWidget(ref_head)
         cr.addWidget(self.feedback_ref_status)
         cr.addWidget(self.feedback_ref_source)
@@ -584,30 +625,58 @@ class MudraMainWindow(QMainWindow):
     def _build_dashboard_page(self) -> QWidget:
         page = QWidget()
         l = QVBoxLayout(page)
-        self.welcome = QLabel("Welcome")
-        self.welcome.setFont(QFont(self.sys_font, 22, QFont.Bold))
-        self.lesson_summary = QLabel("Lessons: -")
-        self.progress_summary = QLabel("Progress: -")
+        l.setContentsMargins(8, 8, 8, 8)
+        l.setSpacing(14)
 
+        # Welcome section
+        welcome_card = QFrame()
+        welcome_card.setObjectName("InfoCard")
+        wc = QVBoxLayout(welcome_card)
+        wc.setContentsMargins(18, 14, 18, 14)
+        wc.setSpacing(6)
+        self.welcome = QLabel("Welcome")
+        self.welcome.setFont(QFont(self.sys_font, 24, QFont.Bold))
+        self.welcome.setStyleSheet("color:#f8fafc;")
+        self.lesson_summary = QLabel("Lessons: -")
+        self.lesson_summary.setStyleSheet("color:#94a3b8; font-size:14px;")
+        self.progress_summary = QLabel("Progress: -")
+        self.progress_summary.setStyleSheet("color:#94a3b8; font-size:13px;")
+        wc.addWidget(self.welcome)
+        wc.addWidget(self.lesson_summary)
+        wc.addWidget(self.progress_summary)
+        l.addWidget(welcome_card)
+
+        # Feature cards
         grid = QGridLayout()
+        grid.setSpacing(12)
         cards = [
-            ("26 Alphabets", "Finger spelling lessons"),
-            ("50-100 Word Signs", "Common ISL words"),
-            ("Study + Practice", "Reference first, then live camera"),
-            ("Analytics", "Accuracy, confidence, confusion matrix"),
+            ("26 Alphabets", "Finger spelling lessons", "#22c55e", "#14532d", self.IDX_STUDY),
+            ("50-100 Word Signs", "Common ISL words", "#1cb0f6", "#0c4a6e", self.IDX_STUDY),
+            ("Study + Practice", "Reference first, then live camera", "#facc15", "#713f12", self.IDX_PRACTICE),
+            ("Analytics", "Accuracy, confidence, confusion matrix", "#a78bfa", "#3b0764", self.IDX_ANALYTICS),
         ]
-        for i, (h, s) in enumerate(cards):
-            c = QFrame()
-            c.setStyleSheet("background:#1e293b; border-radius:14px; border:1px solid #334155;")
-            cl = QVBoxLayout(c)
+        for i, (h, s, accent, bg, nav_idx) in enumerate(cards):
+            c = QPushButton()
+            c.setCursor(Qt.PointingHandCursor)
+            c.setStyleSheet(
+                f"QPushButton {{ background: {bg}; border-radius: 16px; "
+                f"border: 1px solid {accent}40; padding: 20px 18px; text-align: left; }} "
+                f"QPushButton:hover {{ background: {accent}30; border: 1px solid {accent}; }}"
+            )
+            c.clicked.connect(lambda _, idx=nav_idx: self.navigate_to(idx))
+            btn_layout = QVBoxLayout(c)
+            btn_layout.setContentsMargins(4, 4, 4, 4)
+            btn_layout.setSpacing(6)
             hl = QLabel(h)
-            hl.setFont(QFont(self.sys_font, 14, QFont.Bold))
-            cl.addWidget(hl)
-            cl.addWidget(QLabel(s))
+            hl.setFont(QFont(self.sys_font, 15, QFont.Bold))
+            hl.setStyleSheet(f"color:{accent}; background:transparent;")
+            hl.setAttribute(Qt.WA_TransparentForMouseEvents)
+            sl = QLabel(s)
+            sl.setStyleSheet("color:#cbd5e1; font-size:13px; background:transparent;")
+            sl.setAttribute(Qt.WA_TransparentForMouseEvents)
+            btn_layout.addWidget(hl)
+            btn_layout.addWidget(sl)
             grid.addWidget(c, i // 2, i % 2)
-        l.addWidget(self.welcome)
-        l.addWidget(self.lesson_summary)
-        l.addWidget(self.progress_summary)
         l.addLayout(grid)
         l.addStretch()
         return page
@@ -639,7 +708,7 @@ class MudraMainWindow(QMainWindow):
         self.study_ref_label.setAlignment(Qt.AlignCenter)
         self.study_ref_label.setMinimumSize(460, 380)
         self.study_ref_label.setWordWrap(True)
-        self.study_ref_label.setStyleSheet("background:#020617; border:1px solid #334155; border-radius:14px; padding:18px;")
+        self.study_ref_label.setStyleSheet("background:#05070a; border:1px solid #334155; border-radius:14px; padding:18px;")
         self.study_ref_status = QLabel("Reference not available")
         self.study_ref_status.setObjectName("SectionMeta")
         cl.addWidget(self.study_ref_label, 1)
@@ -707,7 +776,7 @@ class MudraMainWindow(QMainWindow):
         self.practice_ref_label = QLabel("Reference not available")
         self.practice_ref_label.setAlignment(Qt.AlignCenter)
         self.practice_ref_label.setMinimumSize(420, 360)
-        self.practice_ref_label.setStyleSheet("background:#020617; border-radius:14px; border:1px solid #334155; padding:12px;")
+        self.practice_ref_label.setStyleSheet("background:#05070a; border-radius:14px; border:1px solid #334155; padding:12px;")
         self.practice_ref_status = QLabel("Reference not available")
         self.practice_ref_status.setAlignment(Qt.AlignCenter)
         self.practice_ref_status.setObjectName("SectionMeta")
@@ -722,13 +791,13 @@ class MudraMainWindow(QMainWindow):
         right.setSpacing(8)
         cam_header = QLabel("Live Camera Recognition")
         cam_header.setFont(QFont(self.sys_font, 14, QFont.Bold))
-        cam_header.setStyleSheet("color:#38bdf8;")
+        cam_header.setStyleSheet("color:#1cb0f6;")
         cam_header.setAlignment(Qt.AlignCenter)
         right.addWidget(cam_header)
         self.camera_view = QLabel("Camera preview")
         self.camera_view.setMinimumSize(420, 360)
         self.camera_view.setAlignment(Qt.AlignCenter)
-        self.camera_view.setStyleSheet("background:#020617; border-radius:14px; border:1px solid #334155; padding:14px;")
+        self.camera_view.setStyleSheet("background:#05070a; border-radius:14px; border:1px solid #334155; padding:14px;")
         self.practice_target_stat = QLabel("Target: -")
         self.practice_pred_stat = QLabel("Prediction: -")
         self.practice_conf_stat = QLabel("Confidence: 0.00")
@@ -770,123 +839,354 @@ class MudraMainWindow(QMainWindow):
 
     def _build_quiz_page(self) -> QWidget:
         page = QWidget()
-        l = QVBoxLayout(page)
+        outer = QVBoxLayout(page)
+        outer.setContentsMargins(4, 4, 4, 4)
+        outer.setSpacing(10)
+
+        # ---- Top bar: target + score + controls ----
+        top_card = QFrame()
+        top_card.setObjectName("InfoCard")
+        top_l = QHBoxLayout(top_card)
+        top_l.setContentsMargins(14, 10, 14, 10)
+        top_l.setSpacing(14)
         self.quiz_target = QLabel("Quiz target: -")
-        self.quiz_target.setFont(QFont(self.sys_font, 20, QFont.Bold))
+        self.quiz_target.setFont(QFont(self.sys_font, 18, QFont.Bold))
+        self.quiz_target.setStyleSheet("color:#f8fafc;")
         self.quiz_state = QLabel("Score: 0/0")
+        self.quiz_state.setFont(QFont(self.sys_font, 14, QFont.Bold))
+        self.quiz_state.setStyleSheet("color:#facc15;")
+        self.quiz_progress = QLabel("Question: 0/10")
+        self.quiz_progress.setStyleSheet("color:#94a3b8; font-size:13px;")
         b1 = QPushButton("Start Quiz (10 Questions)")
-        b2 = QPushButton("Submit Current Prediction")
+        b1.setObjectName("AccentButton")
+        b2 = QPushButton("Submit Answer")
+        b2.setObjectName("GhostButton")
         b1.clicked.connect(self.start_quiz)
         b2.clicked.connect(self.submit_quiz_answer)
-        l.addWidget(self.quiz_target)
-        l.addWidget(self.quiz_state)
-        l.addWidget(b1)
-        l.addWidget(b2)
-        l.addStretch()
+        top_l.addWidget(self.quiz_target, 1)
+        top_l.addWidget(self.quiz_progress)
+        top_l.addWidget(self.quiz_state)
+        top_l.addWidget(b1)
+        top_l.addWidget(b2)
+        outer.addWidget(top_card)
+
+        # ---- Main area: reference (left) + camera (right) ----
+        split = QHBoxLayout()
+        split.setSpacing(10)
+
+        left_card = QFrame()
+        left_card.setObjectName("InfoCard")
+        left = QVBoxLayout(left_card)
+        left.setContentsMargins(10, 10, 10, 10)
+        left.setSpacing(8)
+        qref_header = QLabel("Reference Gesture")
+        qref_header.setFont(QFont(self.sys_font, 14, QFont.Bold))
+        qref_header.setStyleSheet("color:#10b981;")
+        qref_header.setAlignment(Qt.AlignCenter)
+        left.addWidget(qref_header)
+        self.quiz_ref_label = QLabel("Start a quiz to see the reference")
+        self.quiz_ref_label.setAlignment(Qt.AlignCenter)
+        self.quiz_ref_label.setMinimumSize(380, 320)
+        self.quiz_ref_label.setStyleSheet("background:#05070a; border-radius:14px; border:1px solid #334155; padding:12px;")
+        self.quiz_ref_status = QLabel("Waiting for quiz start")
+        self.quiz_ref_status.setAlignment(Qt.AlignCenter)
+        self.quiz_ref_status.setObjectName("SectionMeta")
+        left.addWidget(self.quiz_ref_label)
+        left.addWidget(self.quiz_ref_status)
+
+        right_card = QFrame()
+        right_card.setObjectName("InfoCard")
+        right = QVBoxLayout(right_card)
+        right.setContentsMargins(10, 10, 10, 10)
+        right.setSpacing(8)
+        qcam_header = QLabel("Your Camera")
+        qcam_header.setFont(QFont(self.sys_font, 14, QFont.Bold))
+        qcam_header.setStyleSheet("color:#1cb0f6;")
+        qcam_header.setAlignment(Qt.AlignCenter)
+        right.addWidget(qcam_header)
+        self.quiz_camera_view = QLabel("Camera will start with the quiz")
+        self.quiz_camera_view.setAlignment(Qt.AlignCenter)
+        self.quiz_camera_view.setMinimumSize(380, 320)
+        self.quiz_camera_view.setStyleSheet("background:#05070a; border-radius:14px; border:1px solid #334155; padding:12px;")
+        self.quiz_pred_label = QLabel("Prediction: -")
+        self.quiz_pred_label.setAlignment(Qt.AlignCenter)
+        self.quiz_pred_label.setStyleSheet("color:#94a3b8; font-size:13px;")
+        self.quiz_feedback = QLabel("Press 'Start Quiz' to begin")
+        self.quiz_feedback.setObjectName("StatusPill")
+        right.addWidget(self.quiz_camera_view)
+        right.addWidget(self.quiz_pred_label)
+        right.addWidget(self.quiz_feedback)
+
+        split.addWidget(left_card, 1)
+        split.addWidget(right_card, 1)
+        outer.addLayout(split, 1)
         return page
 
     def _build_analytics_page(self) -> QWidget:
         page = QWidget()
-        l = QVBoxLayout(page)
-        self.analytics_summary = QLabel("No attempts yet")
+        outer = QVBoxLayout(page)
+        outer.setContentsMargins(4, 4, 4, 4)
+        outer.setSpacing(10)
+
+        # ---- Summary cards row ----
+        summary_card = QFrame()
+        summary_card.setObjectName("InfoCard")
+        sc_l = QVBoxLayout(summary_card)
+        sc_l.setContentsMargins(16, 12, 16, 12)
+        sc_l.setSpacing(6)
+        analytics_header = QLabel("Performance Analytics")
+        analytics_header.setFont(QFont(self.sys_font, 16, QFont.Bold))
+        analytics_header.setStyleSheet("color:#f8fafc;")
+        sc_l.addWidget(analytics_header)
+
+        stats_row = QHBoxLayout()
+        stats_row.setSpacing(10)
+        self.stat_total = QLabel("0")
+        self.stat_accuracy = QLabel("0.00")
+        self.stat_avg_conf = QLabel("0.00")
+        self.stat_avg_latency = QLabel("0.0ms")
+        for stat_label, stat_widget, color in [
+            ("Total Attempts", self.stat_total, "#22c55e"),
+            ("Accuracy", self.stat_accuracy, "#1cb0f6"),
+            ("Avg Confidence", self.stat_avg_conf, "#facc15"),
+            ("Avg Latency", self.stat_avg_latency, "#a78bfa"),
+        ]:
+            mini_card = QFrame()
+            mini_card.setStyleSheet(
+                f"background:#0e1525; border:1px solid #2a3446; border-radius:12px; padding:10px;"
+            )
+            mc = QVBoxLayout(mini_card)
+            mc.setContentsMargins(12, 8, 12, 8)
+            mc.setSpacing(2)
+            title_lbl = QLabel(stat_label)
+            title_lbl.setStyleSheet("color:#94a3b8; font-size:11px; font-weight:600;")
+            stat_widget.setFont(QFont(self.sys_font, 20, QFont.Bold))
+            stat_widget.setStyleSheet(f"color:{color}; font-size:22px;")
+            mc.addWidget(title_lbl)
+            mc.addWidget(stat_widget)
+            stats_row.addWidget(mini_card)
+        sc_l.addLayout(stats_row)
+        self.analytics_summary = QLabel("")  # kept for compatibility
+        self.analytics_summary.setVisible(False)
+        sc_l.addWidget(self.analytics_summary)
+        outer.addWidget(summary_card)
+
+        # ---- Progress summary ----
+        progress_card = QFrame()
+        progress_card.setObjectName("InfoCard")
+        pc_l = QVBoxLayout(progress_card)
+        pc_l.setContentsMargins(14, 10, 14, 10)
+        self.progress_detail = QLabel("Complete some practice sessions to see progress breakdown.")
+        self.progress_detail.setWordWrap(True)
+        self.progress_detail.setStyleSheet("color:#cbd5e1; font-size:13px;")
+        pc_l.addWidget(self.progress_detail)
+        outer.addWidget(progress_card)
+
+        # ---- Attempts table ----
+        table_card = QFrame()
+        table_card.setObjectName("InfoCard")
+        tc = QVBoxLayout(table_card)
+        tc.setContentsMargins(10, 10, 10, 10)
+        tc.setSpacing(6)
+        table_header = QLabel("Recent Attempts")
+        table_header.setFont(QFont(self.sys_font, 13, QFont.Bold))
+        table_header.setStyleSheet("color:#f8fafc;")
+        tc.addWidget(table_header)
         self.analytics_table = QTableWidget(0, 6)
         self.analytics_table.setHorizontalHeaderLabels(["Time", "Target", "Predicted", "Conf", "Correct", "Mode"])
-        self.analytics_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
+        self.analytics_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        self.analytics_table.setAlternatingRowColors(True)
+        self.analytics_table.setStyleSheet(
+            "QTableWidget { alternate-background-color: #0e1525; }"
+        )
+        tc.addWidget(self.analytics_table)
+        btn_row = QHBoxLayout()
+        btn_row.setSpacing(8)
         btn_refresh = QPushButton("Refresh Analytics")
-        btn_conf = QPushButton("Load Confusion Matrix View")
+        btn_refresh.setObjectName("AccentButton")
+        btn_conf = QPushButton("Load Confusion Matrix")
+        btn_conf.setObjectName("GhostButton")
         btn_refresh.clicked.connect(self.load_analytics)
         btn_conf.clicked.connect(self.load_confusion_matrix_view)
+        btn_row.addWidget(btn_refresh)
+        btn_row.addWidget(btn_conf)
+        btn_row.addStretch()
+        tc.addLayout(btn_row)
+        outer.addWidget(table_card, 1)
 
-        self.confusion_note = QLabel("Confusion matrix appears after attempts are recorded.")
+        # ---- Confusion Matrix ----
+        cm_card = QFrame()
+        cm_card.setObjectName("InfoCard")
+        cm_l = QVBoxLayout(cm_card)
+        cm_l.setContentsMargins(10, 10, 10, 10)
+        cm_l.setSpacing(6)
+        cm_header = QLabel("Confusion Matrix")
+        cm_header.setFont(QFont(self.sys_font, 13, QFont.Bold))
+        cm_header.setStyleSheet("color:#f8fafc;")
+        self.confusion_note = QLabel("Record attempts to see the confusion matrix.")
+        self.confusion_note.setStyleSheet("color:#94a3b8; font-size:12px;")
         self.confusion_table = QTableWidget(0, 0)
         self.confusion_table.setMaximumHeight(360)
         self.confusion_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
         self.confusion_table.verticalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
-
-        l.addWidget(self.analytics_summary)
-        l.addWidget(self.analytics_table)
-        l.addWidget(btn_refresh)
-        l.addWidget(btn_conf)
-        l.addWidget(self.confusion_note)
-        l.addWidget(self.confusion_table)
+        cm_l.addWidget(cm_header)
+        cm_l.addWidget(self.confusion_note)
+        cm_l.addWidget(self.confusion_table)
+        outer.addWidget(cm_card)
         return page
 
     def _build_admin_page(self) -> QWidget:
         page = QWidget()
-        l = QVBoxLayout(page)
-        self.admin_label = QLabel("Admin controls")
+        outer = QVBoxLayout(page)
+        outer.setContentsMargins(4, 4, 4, 4)
+        outer.setSpacing(10)
+
+        # ---- Header ----
+        header_card = QFrame()
+        header_card.setObjectName("InfoCard")
+        hc = QHBoxLayout(header_card)
+        hc.setContentsMargins(16, 12, 16, 12)
+        self.admin_label = QLabel("Admin Panel")
+        self.admin_label.setFont(QFont(self.sys_font, 18, QFont.Bold))
+        self.admin_label.setStyleSheet("color:#f8fafc;")
+        admin_sub = QLabel("Manage models, database, and system configuration")
+        admin_sub.setStyleSheet("color:#94a3b8; font-size:12px;")
+        hc.addWidget(self.admin_label)
+        hc.addStretch()
+        hc.addWidget(admin_sub)
+        outer.addWidget(header_card)
+
+        # ---- Quick Actions ----
+        actions_card = QFrame()
+        actions_card.setObjectName("InfoCard")
+        ac = QVBoxLayout(actions_card)
+        ac.setContentsMargins(14, 12, 14, 12)
+        ac.setSpacing(8)
+        actions_title = QLabel("Quick Actions")
+        actions_title.setFont(QFont(self.sys_font, 14, QFont.Bold))
+        actions_title.setStyleSheet("color:#facc15;")
+        ac.addWidget(actions_title)
+        btn_row1 = QHBoxLayout()
+        btn_row1.setSpacing(8)
         btn_seed = QPushButton("Reseed Core Data")
+        btn_seed.setObjectName("GhostButton")
+        btn_seed.setToolTip("Re-populate gesture catalog and demo user from seed data")
         btn_models = QPushButton("Refresh Model Registry")
+        btn_models.setObjectName("GhostButton")
+        btn_models.setToolTip("Reload model version list from database")
         btn_activate = QPushButton("Activate Selected Model")
-        btn_reload = QPushButton("Reload Predictor From Active Models")
+        btn_activate.setObjectName("AccentButton")
+        btn_activate.setToolTip("Set the selected model row as active")
+        btn_reload = QPushButton("Reload Predictor")
+        btn_reload.setObjectName("AccentButton")
+        btn_reload.setToolTip("Re-initialize predictor from active model paths")
         btn_seed.clicked.connect(self.reseed)
         btn_models.clicked.connect(self.load_model_versions)
         btn_activate.clicked.connect(self.activate_selected_model)
         btn_reload.clicked.connect(self.reload_predictor_from_registry)
+        btn_row1.addWidget(btn_seed)
+        btn_row1.addWidget(btn_models)
+        btn_row1.addWidget(btn_activate)
+        btn_row1.addWidget(btn_reload)
+        ac.addLayout(btn_row1)
+        outer.addWidget(actions_card)
 
-        reg_box = QFrame()
-        reg_box.setStyleSheet("background:#111827; border:1px solid #334155; border-radius:10px;")
-        reg_layout = QVBoxLayout(reg_box)
-        reg_layout.addWidget(QLabel("Register New Model Version"))
+        # ---- Model Registry Table ----
+        table_card = QFrame()
+        table_card.setObjectName("InfoCard")
+        tbl = QVBoxLayout(table_card)
+        tbl.setContentsMargins(14, 12, 14, 12)
+        tbl.setSpacing(6)
+        tbl_title = QLabel("Model Versions")
+        tbl_title.setFont(QFont(self.sys_font, 14, QFont.Bold))
+        tbl_title.setStyleSheet("color:#1cb0f6;")
+        tbl.addWidget(tbl_title)
+        self.model_table = QTableWidget(0, 6)
+        self.model_table.setHorizontalHeaderLabels(["Model", "Version", "Framework", "Artifact", "Active", "Trained At"])
+        self.model_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        self.model_table.setAlternatingRowColors(True)
+        self.model_table.setStyleSheet("QTableWidget { alternate-background-color: #0e1525; }")
+        self.model_table.setSelectionBehavior(self.model_table.SelectRows)
+        tbl.addWidget(self.model_table)
+        outer.addWidget(table_card)
 
+        # ---- Register New Model ----
+        reg_card = QFrame()
+        reg_card.setObjectName("InfoCard")
+        reg_layout = QVBoxLayout(reg_card)
+        reg_layout.setContentsMargins(14, 12, 14, 12)
+        reg_layout.setSpacing(8)
+        reg_title = QLabel("Register New Model Version")
+        reg_title.setFont(QFont(self.sys_font, 14, QFont.Bold))
+        reg_title.setStyleSheet("color:#a78bfa;")
+        reg_layout.addWidget(reg_title)
+
+        form_grid = QGridLayout()
+        form_grid.setSpacing(8)
         self.reg_model_name = QComboBox()
         self.reg_model_name.addItems(["static_mlp", "dynamic_bigru"])
         self.reg_framework = QLineEdit("pytorch")
         self.reg_version_tag = QLineEdit("")
+        self.reg_version_tag.setPlaceholderText("Auto-generated if empty")
         self.reg_artifact_path = QLineEdit()
+        self.reg_artifact_path.setPlaceholderText("Path to model .pt file")
         self.reg_label_map_path = QLineEdit("models/registry/label_map.json")
         self.reg_norm_stats_path = QLineEdit("models/registry/norm_stats.json")
+
+        form_fields = [
+            ("Model Name", self.reg_model_name, None),
+            ("Framework", self.reg_framework, None),
+            ("Version Tag", self.reg_version_tag, None),
+            ("Artifact Path", self.reg_artifact_path, "Browse Artifact"),
+            ("Label Map Path", self.reg_label_map_path, "Browse Label Map"),
+            ("Norm Stats Path", self.reg_norm_stats_path, "Browse Norm Stats"),
+        ]
+        for row_idx, (label_text, widget, browse_text) in enumerate(form_fields):
+            lbl = QLabel(label_text)
+            lbl.setStyleSheet("color:#cbd5e1; font-size:12px; font-weight:600;")
+            form_grid.addWidget(lbl, row_idx, 0)
+            form_grid.addWidget(widget, row_idx, 1)
+            if browse_text and isinstance(widget, QLineEdit):
+                b = QPushButton(browse_text)
+                b.setObjectName("GhostButton")
+                b.setFixedWidth(130)
+                b.clicked.connect(lambda _, le=widget: self._pick_file_into(le))
+                form_grid.addWidget(b, row_idx, 2)
+        reg_layout.addLayout(form_grid)
+
         self.reg_activate = QCheckBox("Activate immediately")
         self.reg_activate.setChecked(True)
-        self.reg_metrics = QTextEdit('{"accuracy":0.0,"precision":0.0,"recall":0.0,"f1":0.0}')
-        self.reg_metrics.setFixedHeight(80)
-
-        for widget, label in [
-            (self.reg_model_name, "Model Name"),
-            (self.reg_framework, "Framework"),
-            (self.reg_version_tag, "Version Tag (optional)"),
-            (self.reg_artifact_path, "Artifact Path"),
-            (self.reg_label_map_path, "Label Map Path"),
-            (self.reg_norm_stats_path, "Norm Stats Path"),
-        ]:
-            reg_layout.addWidget(QLabel(label))
-            reg_layout.addWidget(widget)
-
-        b_browse_art = QPushButton("Browse Artifact")
-        b_browse_map = QPushButton("Browse Label Map")
-        b_browse_norm = QPushButton("Browse Norm Stats")
-        b_browse_art.clicked.connect(lambda: self._pick_file_into(self.reg_artifact_path))
-        b_browse_map.clicked.connect(lambda: self._pick_file_into(self.reg_label_map_path))
-        b_browse_norm.clicked.connect(lambda: self._pick_file_into(self.reg_norm_stats_path))
-        reg_layout.addWidget(b_browse_art)
-        reg_layout.addWidget(b_browse_map)
-        reg_layout.addWidget(b_browse_norm)
-
-        reg_layout.addWidget(QLabel("Metrics JSON"))
-        reg_layout.addWidget(self.reg_metrics)
+        self.reg_activate.setStyleSheet("color:#cbd5e1; font-size:13px;")
         reg_layout.addWidget(self.reg_activate)
-        b_prefill = QPushButton("Prefill From Active Paths")
-        b_register = QPushButton("Register Model Version")
-        b_rollback = QPushButton("Rollback Active Version (Selected Family)")
+
+        metrics_lbl = QLabel("Metrics JSON")
+        metrics_lbl.setStyleSheet("color:#cbd5e1; font-size:12px; font-weight:600;")
+        reg_layout.addWidget(metrics_lbl)
+        self.reg_metrics = QTextEdit('{\"accuracy\":0.0,\"precision\":0.0,\"recall\":0.0,\"f1\":0.0}')
+        self.reg_metrics.setFixedHeight(70)
+        reg_layout.addWidget(self.reg_metrics)
+
+        reg_btns = QHBoxLayout()
+        reg_btns.setSpacing(8)
+        b_prefill = QPushButton("Prefill From Active")
+        b_prefill.setObjectName("GhostButton")
+        b_register = QPushButton("Register Model")
+        b_register.setObjectName("AccentButton")
+        b_rollback = QPushButton("Rollback Version")
+        b_rollback.setStyleSheet(
+            "background-color:#3f1d1d; border:1px solid #ef4444; color:#fecaca; "
+            "border-radius:10px; padding:10px; font-weight:600;"
+        )
         b_prefill.clicked.connect(self.prefill_model_paths)
         b_register.clicked.connect(self.register_model_version_from_ui)
         b_rollback.clicked.connect(self.rollback_model_family_from_ui)
-        reg_layout.addWidget(b_prefill)
-        reg_layout.addWidget(b_register)
-        reg_layout.addWidget(b_rollback)
-
-        self.model_table = QTableWidget(0, 6)
-        self.model_table.setHorizontalHeaderLabels(["Model", "Version", "Framework", "Artifact", "Active", "Trained At"])
-        self.model_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
-
-        l.addWidget(self.admin_label)
-        l.addWidget(btn_seed)
-        l.addWidget(btn_models)
-        l.addWidget(btn_activate)
-        l.addWidget(btn_reload)
-        l.addWidget(reg_box)
-        l.addWidget(self.model_table)
-        l.addStretch()
+        reg_btns.addWidget(b_prefill)
+        reg_btns.addWidget(b_register)
+        reg_btns.addWidget(b_rollback)
+        reg_btns.addStretch()
+        reg_layout.addLayout(reg_btns)
+        outer.addWidget(reg_card)
+        outer.addStretch()
         return page
 
     def _start_reference_threads(self):
@@ -915,6 +1215,9 @@ class MudraMainWindow(QMainWindow):
         self.right_panel.setVisible(True)
         self.feedback_mode.setText(f"Mode: {self._mode_name(idx)}")
         self._set_active_nav(idx)
+        # Auto-refresh analytics when switching to that page
+        if idx == self.IDX_ANALYTICS and self.session.is_authenticated():
+            self.load_analytics()
 
     def navigate_to(self, idx: int):
         self.stack.setCurrentIndex(idx)
@@ -937,6 +1240,9 @@ class MudraMainWindow(QMainWindow):
     def _sync_reference_status(self, message: str, source: str) -> None:
         if source == "study":
             self.study_ref_status.setText(message)
+        elif source == "quiz":
+            if hasattr(self, 'quiz_ref_status'):
+                self.quiz_ref_status.setText(message)
         else:
             self.practice_ref_status.setText(message)
         self.feedback_ref_status.setText(f"Reference: {message}")
@@ -944,14 +1250,14 @@ class MudraMainWindow(QMainWindow):
     def _set_feedback_status(self, text: str, color: str) -> None:
         self.feedback_status.setText(f"Status: {text}")
         self.feedback_status.setStyleSheet(
-            f"background-color:#1f2937; border:1px solid {color}; border-radius:12px; "
+            f"background-color:#0b0f18; border:1px solid {color}; border-radius:12px; "
             f"padding:6px 10px; color:{color}; font-weight:700;"
         )
 
     def _set_practice_feedback(self, text: str, color: str) -> None:
         self.practice_feedback.setText(text)
         self.practice_feedback.setStyleSheet(
-            f"background-color:#0f172a; border:1px solid {color}; border-radius:12px; "
+            f"background-color:#0b0f18; border:1px solid {color}; border-radius:12px; "
             f"padding:6px 10px; color:{color}; font-weight:700;"
         )
 
@@ -962,15 +1268,16 @@ class MudraMainWindow(QMainWindow):
         self._set_indicator(self.env_static, "StaticModel", self.env_status.get("static_model_loaded", False))
         self._set_indicator(self.env_dynamic, "DynamicModel", self.env_status.get("dynamic_model_loaded", False))
 
-        can_practice = self.env_status.get("mediapipe", False) and self.env_status.get("camera", False)
         if hasattr(self, "btn_start_camera"):
-            self.btn_start_camera.setEnabled(can_practice)
-            if not can_practice:
-                self.btn_start_camera.setText("Start Live Practice (Unavailable)")
-                self._set_practice_feedback("Practice disabled: MediaPipe and camera are required.", "#ef4444")
-                self._set_feedback_status("Practice unavailable", "#ef4444")
+            self.btn_start_camera.setEnabled(True)
+            self.btn_start_camera.setText("Start Live Practice")
+            if not self.env_status.get("mediapipe", False):
+                self._set_practice_feedback("MediaPipe unavailable. Practice may fail until dependencies are fixed.", "#ef4444")
+                self._set_feedback_status("MediaPipe warning", "#ef4444")
+            elif not self.env_status.get("camera", False):
+                self._set_practice_feedback("Camera check warning. Start can still be attempted.", "#facc15")
+                self._set_feedback_status("Camera warning", "#facc15")
             else:
-                self.btn_start_camera.setText("Start Live Practice")
                 self._set_feedback_status("Ready", "#22c55e")
 
     @staticmethod
@@ -1012,7 +1319,7 @@ class MudraMainWindow(QMainWindow):
         gestures = [dict(g) for g in self.db.get_gestures()]
         self.gesture_rows = gestures
         self.lesson_summary.setText(f"Lessons ready: 3 | Gestures loaded: {len(gestures)}")
-        self.feedback_ref_source.setText("Source: ISL local dataset (cached)")
+        self.feedback_ref_source.setText("Source: isl_videos (local)")
 
         self.study_gesture_list.clear()
         self.practice_target_list.clear()
@@ -1051,27 +1358,13 @@ class MudraMainWindow(QMainWindow):
         return "Beginner"
 
     def _show_text_reference(self, label: QLabel, gesture_name: str, ref_info: Dict[str, str]) -> None:
-        """Show a reference image + text description when no video is available."""
-        # Try to show a reference image
-        img_path = get_reference_image_path(gesture_name)
-        if img_path:
-            pixmap = QPixmap(img_path)
-            if not pixmap.isNull():
-                scaled = pixmap.scaled(label.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation)
-                label.setPixmap(scaled)
-                label.setAlignment(Qt.AlignCenter)
-                label.setStyleSheet(
-                    "background:#111827; border:1px solid #334155; border-radius:14px; padding:8px;"
-                )
-                return
-
-        # Fallback: styled HTML text
+        """Show text guidance when no reference video is available."""
         desc = ref_info.get("description", "")
         tips = ref_info.get("tips", "")
         difficulty = ref_info.get("difficulty", "")
         hands = ref_info.get("hands", ref_info.get("hand", ""))
 
-        parts = [f"<b style='color:#10b981; font-size:18px;'>{gesture_name}</b>"]
+        parts = [f"<b style='color:#22c55e; font-size:18px;'>{gesture_name}</b>"]
         if difficulty:
             parts.append(f"<span style='color:#94a3b8; font-size:12px;'>Difficulty: {difficulty.capitalize()}</span>")
         if hands:
@@ -1080,7 +1373,7 @@ class MudraMainWindow(QMainWindow):
         if desc:
             parts.append(f"<p style='color:#e2e8f0; font-size:14px; line-height:1.6;'>{desc}</p>")
         if tips:
-            parts.append(f"<p style='color:#fbbf24; font-size:13px;'>💡 {tips}</p>")
+            parts.append(f"<p style='color:#b45309; font-size:13px;'>💡 {tips}</p>")
         if not desc and not tips:
             parts.append("<p style='color:#94a3b8;'>No reference available for this gesture.</p>")
 
@@ -1088,20 +1381,9 @@ class MudraMainWindow(QMainWindow):
         label.setAlignment(Qt.AlignTop | Qt.AlignLeft)
         label.setWordWrap(True)
         label.setStyleSheet(
-            "background:#111827; border:1px solid #334155; border-radius:14px; "
+            "background:#05070a; border:1px solid #334155; border-radius:14px; "
             "padding:18px; font-family:sans-serif;"
         )
-
-    def _load_static_media(self, label: QLabel, media_path: str) -> None:
-        """Display a static image (png/jpg) on a QLabel."""
-        pixmap = QPixmap(media_path)
-        if not pixmap.isNull():
-            scaled = pixmap.scaled(label.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation)
-            label.setPixmap(scaled)
-            label.setAlignment(Qt.AlignCenter)
-            label.setStyleSheet(
-                "background:#111827; border:1px solid #334155; border-radius:14px; padding:8px;"
-            )
 
     def on_select_study_gesture(self):
         idx = self.study_gesture_list.currentRow()
@@ -1123,21 +1405,15 @@ class MudraMainWindow(QMainWindow):
         self.study_desc.setText(full_desc)
         self.feedback_target.setText(f"Target: {g['display_name']} [{g['gesture_mode']}]")
 
-        media_path = get_media_path(str(g.get("gesture_code") or g["display_name"]))
-        if media_path and media_path.lower().endswith((".mp4", ".gif")):
-            # Video / animated media — hand off to the looping reference thread
+        gesture_key = str(g.get("gesture_code") or g["display_name"])
+        self.study_ref_thread.set_media(None)
+        media_path = get_media_path(gesture_key)
+        if media_path:
             self.study_ref_thread.set_media(media_path)
-            self._sync_reference_status("Loading reference animation...", "study")
-        elif media_path and media_path.lower().endswith((".png", ".jpg", ".jpeg", ".webp")):
-            # Static image — display directly, stop video thread
-            self.study_ref_thread.set_media(None)
-            self._load_static_media(self.study_ref_label, media_path)
-            self._sync_reference_status("Showing reference image", "study")
+            self._sync_reference_status("\u25b6 Playing reference video", "study")
         else:
-            # No media at all — show text fallback
-            self.study_ref_thread.set_media(None)
             self._show_text_reference(self.study_ref_label, str(g["display_name"]), ref_info)
-            self._sync_reference_status("Showing placeholder reference", "study")
+            self._sync_reference_status("Reference video not available", "study")
         self._study_gesture_id = str(g["gesture_id"])
         self._study_started_at = time.time()
 
@@ -1161,26 +1437,26 @@ class MudraMainWindow(QMainWindow):
             self.db.record_study_session(self.session.user_id, self._study_gesture_id, elapsed)
         self._study_started_at = None
 
+    def _load_gesture_reference(self, label: QLabel, ref_thread: ReferenceVideoThread, gesture_row: dict, source_tag: str):
+        """Unified reference loader: uses only ``isl_videos`` mp4 references."""
+        gesture_key = str(gesture_row.get("gesture_code") or gesture_row["display_name"])
+        ref_thread.set_media(None)
+        media_path = get_media_path(gesture_key)
+        if media_path:
+            ref_thread.set_media(media_path)
+            self._sync_reference_status("\u25b6 Playing reference video", source_tag)
+        else:
+            ref_info = get_gesture_reference(str(gesture_row["display_name"]))
+            self._show_text_reference(label, str(gesture_row["display_name"]), ref_info)
+            self._sync_reference_status("Reference video not available", source_tag)
+
     def on_select_practice_gesture(self):
         idx = self.practice_target_list.currentRow()
         if idx < 0 or idx >= len(self.gesture_rows):
             return
         row = dict(self.gesture_rows[idx])
         self.selected_gesture = row
-
-        media_path = get_media_path(str(row.get("gesture_code") or row["display_name"]))
-        if media_path and media_path.lower().endswith((".mp4", ".gif")):
-            self.practice_ref_thread.set_media(media_path)
-            self._sync_reference_status("Loading reference animation...", "practice")
-        elif media_path and media_path.lower().endswith((".png", ".jpg", ".jpeg", ".webp")):
-            self.practice_ref_thread.set_media(None)
-            self._load_static_media(self.practice_ref_label, media_path)
-            self._sync_reference_status("Showing reference image", "practice")
-        else:
-            self.practice_ref_thread.set_media(None)
-            ref_info = get_gesture_reference(str(row["display_name"]))
-            self._show_text_reference(self.practice_ref_label, str(row["display_name"]), ref_info)
-            self._sync_reference_status("Showing placeholder reference", "practice")
+        self._load_gesture_reference(self.practice_ref_label, self.practice_ref_thread, row, "practice")
 
         self.practice_target_stat.setText(f"Target: {row['display_name']}")
         self.feedback_target.setText(f"Target: {row['display_name']} [{row['gesture_mode']}]")
@@ -1189,26 +1465,27 @@ class MudraMainWindow(QMainWindow):
             self.inference_thread.set_target(str(row["display_name"]))
             self.inference_thread.set_target_mode(str(row["gesture_mode"]))
         else:
-            if self.env_status.get("mediapipe") and self.env_status.get("camera"):
-                self.start_camera()
+            self.start_camera()
 
     def start_camera(self):
-        if not (self.env_status.get("mediapipe") and self.env_status.get("camera")):
-            QMessageBox.warning(self, "Unavailable", "Cannot start practice. MediaPipe or camera is unavailable.")
-            return
         if self.inference_thread and self.inference_thread.isRunning():
             return
         if not self.selected_gesture:
-            QMessageBox.information(self, "Select Target", "Choose a gesture first.")
+            self._set_practice_feedback("Select a gesture first to start the camera.", "#facc15")
             return
 
-        self.inference_thread = InferenceThread(self.predictor, self.env_status)
-        self.inference_thread.set_target(str(self.selected_gesture["display_name"]))
-        self.inference_thread.set_target_mode(str(self.selected_gesture["gesture_mode"]))
-        self.inference_thread.frame_signal.connect(self.update_camera_view)
-        self.inference_thread.result_signal.connect(self.update_result)
-        self.inference_thread.start()
-        self._set_feedback_status("Camera started", "#22c55e")
+        try:
+            self.inference_thread = InferenceThread(self.predictor, self.env_status)
+            self.inference_thread.set_target(str(self.selected_gesture["display_name"]))
+            self.inference_thread.set_target_mode(str(self.selected_gesture["gesture_mode"]))
+            self.inference_thread.frame_signal.connect(self.update_camera_view)
+            self.inference_thread.result_signal.connect(self.update_result)
+            self.inference_thread.start()
+            self._set_feedback_status("Camera started", "#22c55e")
+            self._set_practice_feedback("Camera active. Show your sign!", "#22c55e")
+        except Exception as e:
+            self._set_feedback_status("Camera error", "#ef4444")
+            self._set_practice_feedback(f"Camera failed: {e}", "#ef4444")
 
     def stop_camera(self):
         if self.inference_thread:
@@ -1219,8 +1496,14 @@ class MudraMainWindow(QMainWindow):
 
     def update_camera_view(self, qimg: QImage):
         self._last_qimage = qimg
-        pix = QPixmap.fromImage(qimg).scaled(self.camera_view.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation)
-        self.camera_view.setPixmap(pix)
+        pix = QPixmap.fromImage(qimg)
+        # Update practice camera view
+        scaled = pix.scaled(self.camera_view.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation)
+        self.camera_view.setPixmap(scaled)
+        # Also update quiz camera view if it exists
+        if hasattr(self, 'quiz_camera_view') and self.quiz_camera_view.isVisible():
+            scaled_q = pix.scaled(self.quiz_camera_view.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation)
+            self.quiz_camera_view.setPixmap(scaled_q)
 
     def _update_study_ref_frame(self, qimg: QImage):
         self._last_study_ref = qimg
@@ -1229,8 +1512,13 @@ class MudraMainWindow(QMainWindow):
 
     def _update_practice_ref_frame(self, qimg: QImage):
         self._last_practice_ref = qimg
-        pix = QPixmap.fromImage(qimg).scaled(self.practice_ref_label.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation)
-        self.practice_ref_label.setPixmap(pix)
+        pix = QPixmap.fromImage(qimg)
+        scaled = pix.scaled(self.practice_ref_label.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation)
+        self.practice_ref_label.setPixmap(scaled)
+        # Also update quiz ref label if visible (shared ref thread)
+        if hasattr(self, 'quiz_ref_label') and self.quiz_ref_label.isVisible():
+            scaled_q = pix.scaled(self.quiz_ref_label.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation)
+            self.quiz_ref_label.setPixmap(scaled_q)
 
     def update_result(self, result: dict):
         self.current_result = result
@@ -1255,6 +1543,10 @@ class MudraMainWindow(QMainWindow):
         self.feedback_model.setText(f"Model: {model_used}")
         self.feedback_fps.setText(f"FPS: {fps:.1f}")
 
+        # Update quiz prediction label if visible
+        if hasattr(self, 'quiz_pred_label') and self.quiz_pred_label.isVisible():
+            self.quiz_pred_label.setText(f"Prediction: {label} | Confidence: {conf:.2f}")
+
         if warn:
             self._set_practice_feedback(warn, "#facc15")
             self._set_feedback_status("Low FPS", "#facc15")
@@ -1262,15 +1554,29 @@ class MudraMainWindow(QMainWindow):
 
         if self.selected_gesture and status in {"ok", "uncertain"}:
             target = self.selected_gesture["display_name"]
-            if stable and label == target:
-                self._set_practice_feedback("Correct and stable", "#22c55e")
+            # Check if this gesture is in the trained model's label map
+            predictor = getattr(self, 'predictor', None)
+            target_in_model = True
+            if predictor and hasattr(predictor, 'label_map'):
+                target_in_model = target in predictor.label_map
+
+            if not target_in_model:
+                self._set_practice_feedback(
+                    f"'{target}' not yet trained. Keep practising with the reference video!",
+                    "#60a5fa")
+                self._set_feedback_status("Untrained", "#60a5fa")
+            elif stable and label == target:
+                self._set_practice_feedback("Correct and stable! Well done!", "#22c55e")
                 self._set_feedback_status("Correct", "#22c55e")
+            elif label == target and not stable:
+                self._set_practice_feedback("Detected! Hold steady to confirm...", "#a3e635")
+                self._set_feedback_status("Hold steady", "#a3e635")
             elif status == "uncertain":
-                self._set_practice_feedback("Hold steady. Confidence not stable yet.", "#facc15")
+                self._set_practice_feedback("Analysing your gesture — hold steady...", "#facc15")
                 self._set_feedback_status("Uncertain", "#facc15")
             else:
-                self._set_practice_feedback(f"Incorrect. Predicted {label}, target {target}", "#ef4444")
-                self._set_feedback_status("Incorrect", "#ef4444")
+                self._set_practice_feedback(f"Keep trying — showing: {label}. Target: {target}", "#fb923c")
+                self._set_feedback_status("Try again", "#fb923c")
         elif status in {"mediapipe_unavailable", "dynamic_model_unavailable"}:
             env_text = (
                 f"Environment: MediaPipe: {'❌' if not self.env_status.get('mediapipe') else '✅'} | "
@@ -1311,29 +1617,86 @@ class MudraMainWindow(QMainWindow):
         self.load_analytics()
 
     def start_quiz(self):
-        self.quiz_queue = [dict(r) for r in self.db.get_random_gestures(limit=10)]
+        all_gestures = [dict(r) for r in self.db.get_random_gestures(limit=50)]
+        # Filter to only gestures the model has been trained on
+        if hasattr(self, 'predictor') and hasattr(self.predictor, 'label_map'):
+            trained = set(self.predictor.label_map.keys())
+            all_gestures = [g for g in all_gestures if g.get("display_name") in trained]
+        import random
+        random.shuffle(all_gestures)
+        self.quiz_queue = all_gestures[:10]
         self.quiz_index = 0
         self.quiz_score = 0
+        if not self.quiz_queue:
+            self.quiz_target.setText("No gestures available for quiz")
+            return
         self._set_quiz_target()
+        # Auto-start camera for the quiz
+        self.selected_gesture = self.quiz_queue[0]
+        if not self.inference_thread or not self.inference_thread.isRunning():
+            self.start_camera()
+        else:
+            self.inference_thread.set_target(str(self.selected_gesture["display_name"]))
+            self.inference_thread.set_target_mode(str(self.selected_gesture["gesture_mode"]))
 
     def _set_quiz_target(self):
         if self.quiz_index >= len(self.quiz_queue):
-            self.quiz_target.setText("Quiz complete")
+            self.quiz_target.setText("\u2705 Quiz complete!")
             self.quiz_state.setText(f"Final score: {self.quiz_score}/{len(self.quiz_queue)}")
+            self.quiz_progress.setText(f"Done! {len(self.quiz_queue)}/{len(self.quiz_queue)}")
+            self.quiz_feedback.setText(f"You scored {self.quiz_score}/{len(self.quiz_queue)}")
+            self.quiz_feedback.setStyleSheet(
+                "background-color:#0b0f18; border:1px solid #22c55e; border-radius:12px; "
+                "padding:6px 10px; color:#22c55e; font-weight:700;"
+            )
             return
         target = self.quiz_queue[self.quiz_index]
-        self.quiz_target.setText(f"Quiz target: {target['display_name']}")
+        self.selected_gesture = target
+        self.quiz_target.setText(f"Show the sign for: {target['display_name']}")
         self.quiz_state.setText(f"Score: {self.quiz_score}/{self.quiz_index}")
+        self.quiz_progress.setText(f"Question: {self.quiz_index + 1}/{len(self.quiz_queue)}")
+        self.quiz_feedback.setText("Make the sign and press Submit")
+        self.quiz_feedback.setStyleSheet(
+            "background-color:#0b0f18; border:1px solid #334155; border-radius:12px; "
+            "padding:6px 10px; color:#94a3b8; font-weight:700;"
+        )
+        # Show reference for quiz target
+        if hasattr(self, 'quiz_ref_label') and hasattr(self, 'practice_ref_thread'):
+            self._load_gesture_reference(self.quiz_ref_label, self.practice_ref_thread, target, "quiz")
+            self.quiz_ref_status.setText(f"Reference for: {target['display_name']}")
+        # Update inference thread target
+        if self.inference_thread and self.inference_thread.isRunning():
+            self.inference_thread.set_target(str(target["display_name"]))
+            self.inference_thread.set_target_mode(str(target["gesture_mode"]))
 
     def submit_quiz_answer(self):
         if self.quiz_index >= len(self.quiz_queue) or not self.current_result:
+            if not self.current_result:
+                self.quiz_feedback.setText("Camera not active. Start the quiz first!")
+                self.quiz_feedback.setStyleSheet(
+                    "background-color:#0b0f18; border:1px solid #ef4444; border-radius:12px; "
+                    "padding:6px 10px; color:#ef4444; font-weight:700;"
+                )
             return
         target = self.quiz_queue[self.quiz_index]
         pred = str(self.current_result.get("label", "UNKNOWN"))
         conf = float(self.current_result.get("confidence", 0.0))
         stable = bool(self.current_result.get("stable", False))
-        is_correct = stable and pred == target["display_name"] and conf >= 0.65
+        is_correct = stable and pred == target["display_name"] and conf >= 0.30
         self.quiz_score += int(is_correct)
+
+        if is_correct:
+            self.quiz_feedback.setText(f"\u2705 Correct! ({pred}, {conf:.0%})")
+            self.quiz_feedback.setStyleSheet(
+                "background-color:#0b0f18; border:1px solid #22c55e; border-radius:12px; "
+                "padding:6px 10px; color:#22c55e; font-weight:700;"
+            )
+        else:
+            self.quiz_feedback.setText(f"\u274c Incorrect \u2014 predicted {pred} ({conf:.0%})")
+            self.quiz_feedback.setStyleSheet(
+                "background-color:#0b0f18; border:1px solid #ef4444; border-radius:12px; "
+                "padding:6px 10px; color:#ef4444; font-weight:700;"
+            )
 
         self.db.record_attempt(
             user_id=self.session.user_id,
@@ -1348,16 +1711,28 @@ class MudraMainWindow(QMainWindow):
         )
 
         self.quiz_index += 1
-        self._set_quiz_target()
-        self.load_analytics()
+        # Delay showing next question briefly so user sees feedback
+        QTimer.singleShot(1200, lambda: (self._set_quiz_target(), self.load_analytics()))
 
     def load_analytics(self):
         if not self.session.is_authenticated():
             return
         summary = self.db.get_analytics_summary(self.session.user_id)
+        total = int(summary['total_attempts'])
+        acc = summary['accuracy']
+        avg_conf = summary['avg_confidence']
+        avg_lat = summary['avg_latency_ms']
+
+        # Update stat cards
+        if hasattr(self, 'stat_total'):
+            self.stat_total.setText(str(total))
+            self.stat_accuracy.setText(f"{acc:.2f}")
+            self.stat_avg_conf.setText(f"{avg_conf:.2f}")
+            self.stat_avg_latency.setText(f"{avg_lat:.1f}ms")
+
         self.analytics_summary.setText(
-            f"Attempts: {int(summary['total_attempts'])} | Accuracy: {summary['accuracy']:.2f} | "
-            f"Avg Conf: {summary['avg_confidence']:.2f} | Avg Latency: {summary['avg_latency_ms']:.1f}ms"
+            f"Attempts: {total} | Accuracy: {acc:.2f} | "
+            f"Avg Conf: {avg_conf:.2f} | Avg Latency: {avg_lat:.1f}ms"
         )
 
         rows = self.db.get_user_attempts(self.session.user_id, limit=120)
@@ -1372,12 +1747,21 @@ class MudraMainWindow(QMainWindow):
                 r["attempt_mode"],
             ]
             for c, v in enumerate(vals):
-                self.analytics_table.setItem(i, c, QTableWidgetItem(str(v)))
+                item = QTableWidgetItem(str(v))
+                # Color-code correct/incorrect
+                if c == 4:
+                    item.setForeground(QColor("#22c55e") if v == "Yes" else QColor("#ef4444"))
+                self.analytics_table.setItem(i, c, item)
 
         progress_rows = self.db.get_user_progress(self.session.user_id)
         if progress_rows:
             txt = " | ".join([f"{r['title']}: {r['accuracy']:.2f} ({r['attempts_count']} attempts)" for r in progress_rows])
             self.progress_summary.setText(f"Progress: {txt}")
+            if hasattr(self, 'progress_detail'):
+                parts = [f"<span style='color:#22c55e;font-weight:600;'>{r['title']}</span>: "
+                         f"accuracy {r['accuracy']:.0%}, {r['attempts_count']} attempts"
+                         for r in progress_rows]
+                self.progress_detail.setText("<br>".join(parts))
 
     def load_confusion_matrix_view(self):
         if not self.session.is_authenticated():
@@ -1564,3 +1948,9 @@ class MudraMainWindow(QMainWindow):
             self._update_study_ref_frame(self._last_study_ref)
         if self._last_practice_ref is not None:
             self._update_practice_ref_frame(self._last_practice_ref)
+            # Also refresh quiz ref if visible
+            if hasattr(self, 'quiz_ref_label') and self.quiz_ref_label.isVisible():
+                pix = QPixmap.fromImage(self._last_practice_ref).scaled(
+                    self.quiz_ref_label.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation
+                )
+                self.quiz_ref_label.setPixmap(pix)

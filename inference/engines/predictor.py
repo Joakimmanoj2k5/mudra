@@ -59,16 +59,17 @@ class GesturePredictor:
         self.config = config
         self.tracker = HandTracker()
         self.smoother = PredictionSmoother(
-            alpha=float(config.get("inference", {}).get("smoothing_alpha", 0.6)),
-            confirm_frames=int(config.get("inference", {}).get("confirmation_frames", 3)),
+            alpha=float(config.get("inference", {}).get("smoothing_alpha", 0.5)),
+            confirm_frames=int(config.get("inference", {}).get("confirmation_frames", 4)),
         )
         self.sequence = deque(maxlen=30)
         self.frame_count = 0
         self.dynamic_stride = 4
-        self.static_threshold = float(config.get("inference", {}).get("static_threshold", 0.70))
-        self.dynamic_threshold = float(config.get("inference", {}).get("dynamic_threshold", 0.65))
-        self.static_hold_seconds = 1.5
-        self.dynamic_confirm_frames = 5
+        # Thresholds tuned for real ISL video-trained model
+        self.static_threshold = float(config.get("inference", {}).get("static_threshold", 0.40))
+        self.dynamic_threshold = float(config.get("inference", {}).get("dynamic_threshold", 0.35))
+        self.static_hold_seconds = 1.0
+        self.dynamic_confirm_frames = 4
 
         self.label_map = self._load_label_map(config.get("model", {}).get("label_map_path", "models/registry/label_map.json"))
         self.idx_to_label = {v: k for k, v in self.label_map.items()}

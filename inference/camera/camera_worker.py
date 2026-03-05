@@ -34,18 +34,46 @@ class CameraService:
     def open(self) -> bool:
         if self.cap is not None and self.cap.isOpened():
             return True
-        self.cap = cv2.VideoCapture(self.camera_index)
-        self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, self.width)
-        self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.height)
-        self.last_ts = time.time()
-        return bool(self.cap and self.cap.isOpened())
+
+        # Try preferred index first, then common alternates.
+        index_candidates = [self.camera_index] + [idx for idx in (0, 1, 2) if idx != self.camera_index]
+        backend_candidates = [None]
+        for name in ("CAP_AVFOUNDATION", "CAP_DSHOW", "CAP_MSMF", "CAP_V4L2", "CAP_ANY"):
+            if hasattr(cv2, name):
+                backend_candidates.append(getattr(cv2, name))
+
+        for idx in index_candidates:
+            for backend in backend_candidates:
+                try:
+                    cap = cv2.VideoCapture(idx) if backend is None else cv2.VideoCapture(idx, backend)
+                    if not cap or not cap.isOpened():
+                        if cap:
+                            cap.release()
+                        continue
+                    cap.set(cv2.CAP_PROP_FRAME_WIDTH, self.width)
+                    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.height)
+                    # Warm-up read — some cameras need a few frames
+                    for _ in range(3):
+                        cap.grab()
+                    self.cap = cap
+                    self.camera_index = idx
+                    self.last_ts = time.time()
+                    return True
+                except Exception:
+                    continue
+        self.cap = None
+        return False
 
     def read(self) -> Optional[CameraFrame]:
         if self.cap is None or not self.cap.isOpened():
             if not self.open():
                 return None
-        ok, frame = self.cap.read()
-        if not ok:
+        try:
+            ok, frame = self.cap.read()
+        except Exception:
+            self.release()
+            return None
+        if not ok or frame is None:
             self.release()
             return None
         now = time.time()

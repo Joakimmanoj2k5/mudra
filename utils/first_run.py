@@ -1,7 +1,7 @@
 """First-run setup for MUDRA.
 
 Generates initial (untrained) model weights, downloads MediaPipe model,
-and generates reference images if they don't already exist.
+and prepares core runtime artifacts.
 Called automatically on app startup.
 """
 
@@ -80,20 +80,7 @@ def ensure_models() -> None:
         torch.save(DynamicBiGRU().state_dict(), str(dynamic_path))
 
 
-def ensure_reference_images() -> None:
-    """Generate reference card images if the cache is empty."""
-    cache = Path("data/assets/gestures/image_cache")
-    if cache.exists() and len(list(cache.glob("*.png"))) >= 100:
-        return  # Already generated
-    try:
-        from scripts.generate_reference_images import generate_all_reference_images
-        generate_all_reference_images()
-    except Exception as e:
-        print(f"[FirstRun] Could not generate reference images: {e}")
-
-
 def run_first_time_setup() -> None:
     """Run all first-time setup tasks."""
     ensure_mediapipe_model()
     ensure_models()
-    ensure_reference_images()

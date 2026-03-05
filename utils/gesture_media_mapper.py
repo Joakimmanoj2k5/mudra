@@ -9,12 +9,29 @@ from typing import Dict, Optional
 
 from utils.common.gesture_catalog import all_gestures
 
-ASSET_ROOT = Path("data/assets/gestures")
-IMAGE_CACHE = ASSET_ROOT / "image_cache"
-PLACEHOLDER_IMAGE = ASSET_ROOT / "placeholder.png"
-_REF_DATA_PATH = ASSET_ROOT / "isl_reference_data.json"
+ISL_VIDEO_ROOT = Path("isl_videos")
+_REF_DATA_PATH = Path("data/assets/gestures/isl_reference_data.json")
 _ref_cache: Optional[Dict] = None
 _gesture_code_map_cache: Optional[Dict[str, str]] = None
+_video_index_cache: Optional[Dict[str, Path]] = None
+
+_NUMBER_STEM_ALIASES: Dict[str, tuple[str, ...]] = {
+    "zero": ("0",),
+    "one": ("1",),
+    "two": ("2",),
+    "three": ("3",),
+    "four": ("4",),
+    "five": ("5",),
+    "six": ("6",),
+    "seven": ("7",),
+    "eight": ("8",),
+    "nine": ("9",),
+    "ten": ("10",),
+}
+
+_VIDEO_ALIASES: Dict[str, tuple[str, ...]] = {
+    "i_am_fine": ("fine",),
+}
 
 
 def _slug(value: str) -> str:
@@ -70,76 +87,48 @@ def _normalize_gesture_name(gesture_code_or_name: str) -> str:
     return value
 
 
-def get_reference_image_path(gesture_code_or_name: str) -> Optional[str]:
-    """Return path to a cached reference image for the gesture, or None."""
+def _video_index() -> Dict[str, Path]:
+    global _video_index_cache
+    if _video_index_cache is not None:
+        return _video_index_cache
+    index: Dict[str, Path] = {}
+    if ISL_VIDEO_ROOT.exists():
+        for path in sorted(ISL_VIDEO_ROOT.glob("*.mp4")):
+            index[path.stem.lower()] = path
+    _video_index_cache = index
+    return _video_index_cache
+
+
+def _candidate_video_stems(gesture_name: str) -> list[str]:
+    slug = _slug(gesture_name)
+    candidates = [slug]
+    if len(gesture_name) == 1 and gesture_name.isalpha():
+        candidates.append(gesture_name.lower())
+    candidates.extend(_NUMBER_STEM_ALIASES.get(slug, ()))
+    candidates.extend(_VIDEO_ALIASES.get(slug, ()))
+
+    seen: set[str] = set()
+    ordered: list[str] = []
+    for stem in candidates:
+        key = stem.lower()
+        if not key or key in seen:
+            continue
+        seen.add(key)
+        ordered.append(stem)
+    return ordered
+
+
+def get_media_path(gesture_code_or_name: str) -> Optional[str]:
+    """Return the reference video path for a gesture from ``isl_videos/`` only."""
     gesture_name = _normalize_gesture_name(gesture_code_or_name)
     if not gesture_name:
         return None
 
-    slug = _slug(gesture_name)
-    for ext in (".png", ".jpg", ".jpeg", ".gif", ".webp"):
-        p = IMAGE_CACHE / f"{slug}{ext}"
-        if p.exists():
-            return str(p)
-
-    # Single letter alphabets
-    if len(gesture_name) == 1 and gesture_name.isalpha():
-        for ext in (".png", ".jpg", ".jpeg"):
-            p = IMAGE_CACHE / f"{gesture_name.lower()}{ext}"
-            if p.exists():
-                return str(p)
-    return None
-
-
-def get_media_path(gesture_code_or_name: str) -> Optional[str]:
-    """Return the best available media file for *gesture_name*.
-
-    Priority order:
-        1. mp4 animation (generated reference)
-        2. gif animation
-        3. cached png image (from image_cache)
-        4. placeholder image
-    """
-    gesture_name = _normalize_gesture_name(gesture_code_or_name)
-    if not gesture_name:
-        return str(PLACEHOLDER_IMAGE) if PLACEHOLDER_IMAGE.exists() else None
-
-    slug = _slug(gesture_name)
-
-    # --- 1. MP4 animations ---
-    if len(gesture_name) == 1 and gesture_name.isalpha():
-        for name in (gesture_name.upper(), gesture_name.lower()):
-            p = ASSET_ROOT / "alphabets" / f"{name}.mp4"
-            if p.exists():
-                return str(p)
-
-    mp4_candidates = [
-        ASSET_ROOT / "words" / f"{slug}.mp4",
-        ASSET_ROOT / "alphabets" / f"{slug.upper()}.mp4",
-        ASSET_ROOT / "alphabets" / f"{slug.lower()}.mp4",
-    ]
-    for c in mp4_candidates:
-        if c.exists():
-            return str(c)
-
-    # --- 2. GIF animations ---
-    gif_candidates = [
-        ASSET_ROOT / "words" / f"{slug}.gif",
-        ASSET_ROOT / "alphabets" / f"{slug}.gif",
-        ASSET_ROOT / "alphabets" / f"{slug.upper()}.gif",
-    ]
-    for c in gif_candidates:
-        if c.exists():
-            return str(c)
-
-    # --- 3. Cached PNG image ---
-    img = get_reference_image_path(gesture_name)
-    if img is not None:
-        return img
-
-    # --- 4. Placeholder image ---
-    if PLACEHOLDER_IMAGE.exists():
-        return str(PLACEHOLDER_IMAGE)
+    index = _video_index()
+    for stem in _candidate_video_stems(gesture_name):
+        path = index.get(stem.lower())
+        if path and path.exists():
+            return str(path)
     return None
 
 
