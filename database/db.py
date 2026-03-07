@@ -252,18 +252,30 @@ class DatabaseManager:
             return conn.execute("SELECT * FROM lessons WHERE is_active=1 ORDER BY sequence_order").fetchall()
 
     def get_gestures(self, lesson_type: Optional[str] = None) -> List[sqlite3.Row]:
-        query = "SELECT g.* FROM gestures g JOIN lessons l ON g.lesson_id=l.lesson_id"
-        params: Tuple[str, ...] = ()
+        catalog_codes = tuple(g.code for g in all_gestures())
+        if not catalog_codes:
+            return []
+
+        placeholders = ",".join("?" for _ in catalog_codes)
+        query = f"SELECT g.* FROM gestures g JOIN lessons l ON g.lesson_id=l.lesson_id WHERE g.gesture_code IN ({placeholders})"
+        params: Tuple[str, ...] = catalog_codes
         if lesson_type:
-            query += " WHERE l.lesson_type=?"
-            params = (lesson_type,)
+            query += " AND l.lesson_type=?"
+            params = params + (lesson_type,)
         query += " ORDER BY g.display_name"
         with self.connect() as conn:
             return conn.execute(query, params).fetchall()
 
     def get_random_gestures(self, limit: int = 10) -> List[sqlite3.Row]:
+        catalog_codes = tuple(g.code for g in all_gestures())
+        if not catalog_codes:
+            return []
+        placeholders = ",".join("?" for _ in catalog_codes)
         with self.connect() as conn:
-            return conn.execute("SELECT * FROM gestures ORDER BY RANDOM() LIMIT ?", (limit,)).fetchall()
+            return conn.execute(
+                f"SELECT * FROM gestures WHERE gesture_code IN ({placeholders}) ORDER BY RANDOM() LIMIT ?",
+                catalog_codes + (limit,),
+            ).fetchall()
 
     def get_active_model_version(self, model_name: Optional[str] = None) -> Optional[str]:
         with self.connect() as conn:

@@ -1,6 +1,7 @@
 """Canonical gesture catalog for seeding lessons and DB records."""
 
 from dataclasses import dataclass
+from pathlib import Path
 from typing import List
 
 
@@ -19,7 +20,38 @@ ALPHABETS: List[GestureSpec] = [
     for ch in "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 ]
 
-WORD_SPECS: List[GestureSpec] = [
+_WORD_VIDEO_STEM_OVERRIDES = {
+    "WORD_OK": "okay",
+    "WORD_I_AM_FINE": "fine",
+    "WORD_ONE": "1",
+    "WORD_TWO": "2",
+    "WORD_THREE": "3",
+    "WORD_FOUR": "4",
+    "WORD_FIVE": "5",
+    "WORD_SIX": "6",
+    "WORD_SEVEN": "7",
+    "WORD_EIGHT": "8",
+    "WORD_NINE": "9",
+    "WORD_TEN": "10",
+}
+
+
+def _slug(value: str) -> str:
+    return "_".join(value.strip().lower().replace("-", " ").split())
+
+
+def _available_video_stems() -> set[str]:
+    video_root = Path("isl_videos")
+    if not video_root.exists():
+        return set()
+    return {path.stem.lower() for path in video_root.glob("*.mp4")}
+
+
+def _word_video_stem(spec: GestureSpec) -> str:
+    return _WORD_VIDEO_STEM_OVERRIDES.get(spec.code, _slug(spec.display_name))
+
+
+ALL_WORD_SPECS: List[GestureSpec] = [
     GestureSpec("WORD_NAMASTE", "Namaste", "word", "static", "greetings", True),
     GestureSpec("WORD_HELLO", "Hello", "word", "dynamic", "greetings"),
     GestureSpec("WORD_GOOD_MORNING", "Good Morning", "word", "dynamic", "greetings"),
@@ -118,6 +150,12 @@ WORD_SPECS: List[GestureSpec] = [
     GestureSpec("WORD_HOT", "Hot", "word", "static", "emotion"),
     GestureSpec("WORD_GREAT", "Great", "word", "dynamic", "emotion"),
     GestureSpec("WORD_BAD", "Bad", "word", "dynamic", "emotion"),
+]
+
+_AVAILABLE_VIDEO_STEMS = _available_video_stems()
+WORD_SPECS: List[GestureSpec] = [
+    spec for spec in ALL_WORD_SPECS
+    if _word_video_stem(spec).lower() in _AVAILABLE_VIDEO_STEMS
 ]
 
 
