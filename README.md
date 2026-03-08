@@ -1,5 +1,19 @@
 # MUDRA — Indian Sign Language Learning (Desktop)
 
+<div align="center">
+
+## 🐍 Contribution Snake
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/Joakimmanoj2k5/mudra/output/github-contribution-grid-snake-dark.svg" />
+  <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/Joakimmanoj2k5/mudra/output/github-contribution-grid-snake.svg" />
+  <img alt="github-snake" src="https://raw.githubusercontent.com/Joakimmanoj2k5/mudra/output/github-contribution-grid-snake-dark.svg" />
+</picture>
+
+</div>
+
+---
+
 MUDRA is an offline, privacy-first desktop application to learn and practice Indian Sign Language (ISL). It uses MediaPipe for hand landmark detection and PyTorch models for gesture recognition. The UI is written with PyQt5 and OpenCV is used for camera capture and overlays.
 
 ## Highlights
