@@ -22,6 +22,8 @@ from PyQt5.QtWidgets import (
     QMainWindow,
     QMessageBox,
     QPushButton,
+    QScrollArea,
+    QSizePolicy,
     QStackedWidget,
     QStyle,
     QTableWidget,
@@ -36,6 +38,7 @@ from inference.camera.camera_worker import CameraService
 from inference.engines.predictor import GesturePredictor
 from inference.overlay.draw import draw_overlay
 from ui.state.session import SessionState
+from utils.common.gesture_catalog import LEVEL_INFO
 from utils.common.security import create_access_token, verify_password
 from utils.environment_check import check_environment
 from utils.gesture_media_mapper import get_gesture_reference, get_media_path
@@ -590,36 +593,95 @@ class MudraMainWindow(QMainWindow):
 
     def _build_login_page(self) -> QWidget:
         page = QWidget()
+        page.setStyleSheet(
+            "background: qlineargradient(x1:0, y1:0, x2:1, y2:1, "
+            "stop:0 #020409, stop:0.5 #060d18, stop:1 #0a1628);"
+        )
         l = QVBoxLayout(page)
-        l.addStretch()
+        l.addStretch(2)
         form = QFrame()
-        form.setObjectName("InfoCard")
-        form.setMaximumWidth(520)
+        form.setMaximumWidth(460)
+        form.setStyleSheet(
+            "QFrame { background: rgba(15, 23, 42, 0.85); "
+            "border: 1px solid rgba(34, 197, 94, 0.25); "
+            "border-radius: 24px; }"
+        )
         fl = QVBoxLayout(form)
-        fl.setContentsMargins(24, 22, 24, 22)
-        fl.setSpacing(10)
-        title = QLabel("Login to MUDRA")
-        title.setFont(QFont(self.sys_font, 28, QFont.Bold))
-        self.login_email = QLineEdit()
-        self.login_email.setPlaceholderText("Email")
-        self.login_password = QLineEdit()
-        self.login_password.setPlaceholderText("Password")
-        self.login_password.setEchoMode(QLineEdit.Password)
-        btn_login = QPushButton("Login")
-        btn_demo = QPushButton("Use Demo Account")
-        btn_login.clicked.connect(self.handle_login)
-        btn_demo.clicked.connect(lambda: self.login_email.setText("demo@mudra.local") or self.login_password.setText("demo123"))
+        fl.setContentsMargins(36, 32, 36, 32)
+        fl.setSpacing(14)
+
+        brand = QLabel("\U0001f91f")
+        brand.setFont(QFont(self.sys_font, 42))
+        brand.setAlignment(Qt.AlignCenter)
+        fl.addWidget(brand)
+
+        title = QLabel("MUDRA")
+        title.setFont(QFont(self.sys_font, 32, QFont.Bold))
+        title.setAlignment(Qt.AlignCenter)
+        title.setStyleSheet(
+            "color: qlineargradient(x1:0, y1:0, x2:1, y2:0, "
+            "stop:0 #22c55e, stop:1 #3b82f6); "
+            "background: transparent;"
+        )
+        subtitle = QLabel("Learn Indian Sign Language")
+        subtitle.setAlignment(Qt.AlignCenter)
+        subtitle.setStyleSheet("color: #94a3b8; font-size: 14px; background: transparent;")
         fl.addWidget(title)
-        fl.addWidget(self.login_email)
-        fl.addWidget(self.login_password)
+        fl.addWidget(subtitle)
+        fl.addSpacing(8)
+
+        for le_name in ["login_email", "login_password"]:
+            le = QLineEdit()
+            le.setMinimumHeight(44)
+            le.setStyleSheet(
+                "QLineEdit { border-radius: 12px; border: 1px solid #334155; "
+                "padding: 10px 16px; background-color: rgba(11, 18, 32, 0.8); "
+                "color: #f8fafc; font-size: 14px; }"
+                "QLineEdit:focus { border-color: #22c55e; }"
+            )
+            if le_name == "login_email":
+                le.setPlaceholderText("\u2709  Email")
+                self.login_email = le
+            else:
+                le.setPlaceholderText("\U0001f512  Password")
+                le.setEchoMode(QLineEdit.Password)
+                self.login_password = le
+            fl.addWidget(le)
+
+        btn_login = QPushButton("Sign In")
+        btn_login.setMinimumHeight(46)
+        btn_login.setFont(QFont(self.sys_font, 14, QFont.Bold))
+        btn_login.setCursor(Qt.PointingHandCursor)
+        btn_login.setStyleSheet(
+            "QPushButton { background: qlineargradient(x1:0,y1:0,x2:1,y2:0, "
+            "stop:0 #16a34a, stop:1 #15803d); border-radius: 12px; "
+            "color: #dcfce7; border: none; font-size: 15px; }"
+            "QPushButton:hover { background: qlineargradient(x1:0,y1:0,x2:1,y2:0, "
+            "stop:0 #22c55e, stop:1 #16a34a); }"
+        )
+        btn_login.clicked.connect(self.handle_login)
+        fl.addSpacing(4)
         fl.addWidget(btn_login)
+
+        btn_demo = QPushButton("Use Demo Account")
+        btn_demo.setCursor(Qt.PointingHandCursor)
+        btn_demo.setStyleSheet(
+            "QPushButton { background: transparent; color: #94a3b8; "
+            "border: 1px solid #334155; border-radius: 12px; padding: 10px; font-size: 13px; }"
+            "QPushButton:hover { color: #f8fafc; border-color: #22c55e; }"
+        )
+        btn_demo.clicked.connect(
+            lambda: (self.login_email.setText("demo@mudra.local"),
+                     self.login_password.setText("demo123"))
+        )
         fl.addWidget(btn_demo)
+
         row = QHBoxLayout()
         row.addStretch()
         row.addWidget(form)
         row.addStretch()
         l.addLayout(row)
-        l.addStretch()
+        l.addStretch(3)
         return page
 
     def _build_dashboard_page(self) -> QWidget:
@@ -630,116 +692,246 @@ class MudraMainWindow(QMainWindow):
 
         # Welcome section
         welcome_card = QFrame()
-        welcome_card.setObjectName("InfoCard")
+        welcome_card.setStyleSheet(
+            "background: qlineargradient(x1:0,y1:0,x2:1,y2:1, "
+            "stop:0 #0a1628, stop:1 #14532d30); "
+            "border: 1px solid #22c55e30; border-radius: 20px;"
+        )
         wc = QVBoxLayout(welcome_card)
-        wc.setContentsMargins(18, 14, 18, 14)
-        wc.setSpacing(6)
+        wc.setContentsMargins(24, 20, 24, 20)
+        wc.setSpacing(8)
         self.welcome = QLabel("Welcome")
-        self.welcome.setFont(QFont(self.sys_font, 24, QFont.Bold))
-        self.welcome.setStyleSheet("color:#f8fafc;")
+        self.welcome.setFont(QFont(self.sys_font, 28, QFont.Bold))
+        self.welcome.setStyleSheet("color:#f8fafc; background:transparent;")
         self.lesson_summary = QLabel("Lessons: -")
-        self.lesson_summary.setStyleSheet("color:#94a3b8; font-size:14px;")
-        self.progress_summary = QLabel("Progress: -")
-        self.progress_summary.setStyleSheet("color:#94a3b8; font-size:13px;")
+        self.lesson_summary.setStyleSheet("color:#94a3b8; font-size:14px; background:transparent;")
+        self.progress_summary = QLabel("Start learning ISL at your own pace \U0001f680")
+        self.progress_summary.setStyleSheet("color:#94a3b8; font-size:13px; background:transparent;")
         wc.addWidget(self.welcome)
         wc.addWidget(self.lesson_summary)
         wc.addWidget(self.progress_summary)
         l.addWidget(welcome_card)
 
-        # Feature cards
+        # Level cards grid
         grid = QGridLayout()
         grid.setSpacing(12)
         cards = [
-            ("26 Alphabets", "Finger spelling lessons", "#22c55e", "#14532d", self.IDX_STUDY),
-            ("50-100 Word Signs", "Common ISL words", "#1cb0f6", "#0c4a6e", self.IDX_STUDY),
-            ("Study + Practice", "Reference first, then live camera", "#facc15", "#713f12", self.IDX_PRACTICE),
-            ("Analytics", "Accuracy, confidence, confusion matrix", "#a78bfa", "#3b0764", self.IDX_ANALYTICS),
+            ("\U0001f91f  Level 1 — Letters", "26 finger-spelling alphabets (A-Z)",
+             "#22c55e", "#14532d", self.IDX_STUDY),
+            ("\U0001f522  Level 2 — Numbers", "Count 1-10 and learn basic signs",
+             "#3b82f6", "#1e3a5f", self.IDX_STUDY),
+            ("\U0001f4ac  Level 3 — Words", "Greetings, family, and daily life",
+             "#f59e0b", "#713f12", self.IDX_STUDY),
+            ("\U0001f3eb  Level 4 — Actions", "Education, travel, emergency signs",
+             "#ec4899", "#701a3e", self.IDX_STUDY),
+            ("\u2764\ufe0f  Level 5 — Emotions", "Express feelings and complex phrases",
+             "#a78bfa", "#3b0764", self.IDX_STUDY),
+            ("\U0001f3af  Practice & Quiz", "Test your skills with live camera",
+             "#06b6d4", "#164e63", self.IDX_PRACTICE),
         ]
         for i, (h, s, accent, bg, nav_idx) in enumerate(cards):
             c = QPushButton()
             c.setCursor(Qt.PointingHandCursor)
             c.setStyleSheet(
-                f"QPushButton {{ background: {bg}; border-radius: 16px; "
-                f"border: 1px solid {accent}40; padding: 20px 18px; text-align: left; }} "
-                f"QPushButton:hover {{ background: {accent}30; border: 1px solid {accent}; }}"
+                f"QPushButton {{ background: qlineargradient("
+                f"x1:0, y1:0, x2:1, y2:1, stop:0 {bg}, stop:1 #121826); "
+                f"border-radius: 18px; "
+                f"border: 1px solid {accent}40; padding: 22px 20px; text-align: left; }} "
+                f"QPushButton:hover {{ background: {accent}25; border: 1px solid {accent}; }}"
             )
             c.clicked.connect(lambda _, idx=nav_idx: self.navigate_to(idx))
             btn_layout = QVBoxLayout(c)
-            btn_layout.setContentsMargins(4, 4, 4, 4)
+            btn_layout.setContentsMargins(6, 6, 6, 6)
             btn_layout.setSpacing(6)
             hl = QLabel(h)
-            hl.setFont(QFont(self.sys_font, 15, QFont.Bold))
+            hl.setFont(QFont(self.sys_font, 14, QFont.Bold))
             hl.setStyleSheet(f"color:{accent}; background:transparent;")
             hl.setAttribute(Qt.WA_TransparentForMouseEvents)
             sl = QLabel(s)
-            sl.setStyleSheet("color:#cbd5e1; font-size:13px; background:transparent;")
+            sl.setStyleSheet("color:#cbd5e1; font-size:12px; background:transparent;")
             sl.setAttribute(Qt.WA_TransparentForMouseEvents)
             btn_layout.addWidget(hl)
             btn_layout.addWidget(sl)
-            grid.addWidget(c, i // 2, i % 2)
+            grid.addWidget(c, i // 3, i % 3)
         l.addLayout(grid)
         l.addStretch()
         return page
 
     def _build_study_page(self) -> QWidget:
         page = QWidget()
-        layout = QHBoxLayout(page)
-        layout.setContentsMargins(4, 4, 4, 4)
-        layout.setSpacing(10)
+        outer = QVBoxLayout(page)
+        outer.setContentsMargins(4, 4, 4, 4)
+        outer.setSpacing(10)
 
-        list_card = QFrame()
-        list_card.setObjectName("InfoCard")
-        ll = QVBoxLayout(list_card)
-        ll.setContentsMargins(10, 10, 10, 10)
-        ll.setSpacing(8)
-        ll.addWidget(QLabel("ISL Gesture Library"))
-        self.study_gesture_list = QListWidget()
-        self.study_gesture_list.setMinimumWidth(240)
-        self.study_gesture_list.itemSelectionChanged.connect(self.on_select_study_gesture)
-        ll.addWidget(self.study_gesture_list)
+        # ---- Header ----
+        hdr_card = QFrame()
+        hdr_card.setObjectName("InfoCard")
+        hdr_l = QHBoxLayout(hdr_card)
+        hdr_l.setContentsMargins(18, 12, 18, 12)
+        study_title = QLabel("\U0001f4d6  ISL Learning Path")
+        study_title.setFont(QFont(self.sys_font, 20, QFont.Bold))
+        study_title.setStyleSheet("color:#f8fafc;")
+        study_sub = QLabel("Progress through 5 levels — from letters to advanced phrases")
+        study_sub.setStyleSheet("color:#94a3b8; font-size:13px;")
+        hdr_l.addWidget(study_title)
+        hdr_l.addStretch()
+        hdr_l.addWidget(study_sub)
+        outer.addWidget(hdr_card)
 
-        center_card = QFrame()
-        center_card.setObjectName("InfoCard")
-        cl = QVBoxLayout(center_card)
-        cl.setContentsMargins(10, 10, 10, 10)
-        cl.setSpacing(8)
-        cl.addWidget(QLabel("Reference Animation"))
+        # ---- Scrollable level + detail area ----
+        content_split = QHBoxLayout()
+        content_split.setSpacing(10)
+
+        # -- Left: level cards (scrollable) --
+        scroll_area = QScrollArea()
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setStyleSheet(
+            "QScrollArea { border: none; background: transparent; }"
+            "QScrollBar:vertical { background: #0b1220; width: 8px; border-radius: 4px; }"
+            "QScrollBar::handle:vertical { background: #334155; border-radius: 4px; min-height: 30px; }"
+            "QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0px; }"
+        )
+        scroll_content = QWidget()
+        levels_layout = QVBoxLayout(scroll_content)
+        levels_layout.setContentsMargins(0, 0, 6, 0)
+        levels_layout.setSpacing(10)
+
+        self._study_level_lists: Dict[int, QListWidget] = {}
+        self._study_level_cards: Dict[int, QFrame] = {}
+        self._study_level_gesture_lists: Dict[int, QFrame] = {}
+
+        for lvl in sorted(LEVEL_INFO):
+            info = LEVEL_INFO[lvl]
+            accent = info["accent"]
+            bg = info["bg"]
+            emoji = info["emoji"]
+            title = info["title"]
+            desc = info["desc"]
+
+            card = QFrame()
+            card.setObjectName("InfoCard")
+            card.setStyleSheet(
+                f"QFrame#InfoCard {{ background: qlineargradient("
+                f"x1:0, y1:0, x2:1, y2:1, stop:0 {bg}, stop:1 #121826);"
+                f"border: 1px solid {accent}50; border-radius: 16px; }}"
+            )
+            card_l = QVBoxLayout(card)
+            card_l.setContentsMargins(14, 12, 14, 12)
+            card_l.setSpacing(6)
+
+            # Level header row
+            row = QHBoxLayout()
+            row.setSpacing(10)
+            emoji_lbl = QLabel(emoji)
+            emoji_lbl.setFont(QFont(self.sys_font, 22))
+            emoji_lbl.setFixedWidth(36)
+            title_lbl = QLabel(f"Level {lvl}  ·  {title}")
+            title_lbl.setFont(QFont(self.sys_font, 15, QFont.Bold))
+            title_lbl.setStyleSheet(f"color:{accent};")
+            self._study_level_count_lbl = QLabel("")
+            count_lbl = QLabel("")
+            count_lbl.setObjectName(f"LevelCount_{lvl}")
+            count_lbl.setStyleSheet("color:#94a3b8; font-size:12px;")
+            row.addWidget(emoji_lbl)
+            row.addWidget(title_lbl)
+            row.addStretch()
+            row.addWidget(count_lbl)
+            card_l.addLayout(row)
+
+            desc_lbl = QLabel(desc)
+            desc_lbl.setStyleSheet("color:#cbd5e1; font-size:12px; padding-left:46px;")
+            card_l.addWidget(desc_lbl)
+
+            # Gesture list (initially hidden, toggled on click)
+            gesture_frame = QFrame()
+            gesture_frame.setVisible(False)
+            gfl = QVBoxLayout(gesture_frame)
+            gfl.setContentsMargins(0, 6, 0, 0)
+            gfl.setSpacing(0)
+            gesture_list = QListWidget()
+            gesture_list.setMinimumHeight(120)
+            gesture_list.setMaximumHeight(220)
+            gesture_list.setStyleSheet(
+                f"QListWidget {{ background: #0a0f17; border: 1px solid {accent}30; "
+                f"border-radius: 10px; padding: 4px; }}"
+                f"QListWidget::item {{ padding: 6px 10px; border-radius: 6px; }}"
+                f"QListWidget::item:selected {{ background: {accent}30; color: {accent}; }}"
+                f"QListWidget::item:hover {{ background: #1e293b; }}"
+            )
+            gesture_list.itemSelectionChanged.connect(self.on_select_study_gesture)
+            gfl.addWidget(gesture_list)
+            card_l.addWidget(gesture_frame)
+
+            self._study_level_lists[lvl] = gesture_list
+            self._study_level_cards[lvl] = card
+            self._study_level_gesture_lists[lvl] = gesture_frame
+
+            # Make the card header clickable to toggle gesture list
+            card.mousePressEvent = lambda e, lv=lvl: self._toggle_study_level(lv)
+            card.setCursor(Qt.PointingHandCursor)
+
+            levels_layout.addWidget(card)
+
+        levels_layout.addStretch()
+        scroll_area.setWidget(scroll_content)
+
+        # -- Right: gesture detail panel --
+        detail_card = QFrame()
+        detail_card.setObjectName("InfoCard")
+        detail_l = QVBoxLayout(detail_card)
+        detail_l.setContentsMargins(14, 14, 14, 14)
+        detail_l.setSpacing(10)
+
+        detail_header = QLabel("Gesture Details")
+        detail_header.setFont(QFont(self.sys_font, 16, QFont.Bold))
+        detail_header.setStyleSheet("color:#f8fafc;")
+        detail_l.addWidget(detail_header)
+
         self.study_ref_label = QLabel("Select a gesture to see its reference")
         self.study_ref_label.setAlignment(Qt.AlignCenter)
-        self.study_ref_label.setMinimumSize(460, 380)
+        self.study_ref_label.setMinimumSize(400, 320)
         self.study_ref_label.setWordWrap(True)
-        self.study_ref_label.setStyleSheet("background:#05070a; border:1px solid #334155; border-radius:14px; padding:18px;")
-        self.study_ref_status = QLabel("Reference not available")
+        self.study_ref_label.setStyleSheet(
+            "background: qlineargradient(x1:0,y1:0,x2:1,y2:1, stop:0 #05070a, stop:1 #0d1117);"
+            "border: 1px solid #334155; border-radius: 16px; padding: 18px; color:#94a3b8; font-size:14px;"
+        )
+        self.study_ref_status = QLabel("Reference not loaded")
         self.study_ref_status.setObjectName("SectionMeta")
-        cl.addWidget(self.study_ref_label, 1)
-        cl.addWidget(self.study_ref_status)
+        detail_l.addWidget(self.study_ref_label, 1)
+        detail_l.addWidget(self.study_ref_status)
 
-        info = QFrame()
-        info.setObjectName("InfoCard")
-        il = QVBoxLayout(info)
-        il.setContentsMargins(10, 10, 10, 10)
-        il.setSpacing(8)
-        il.addWidget(QLabel("Gesture Details"))
         self.study_name = QLabel("Gesture: -")
+        self.study_name.setFont(QFont(self.sys_font, 14, QFont.Bold))
+        self.study_name.setStyleSheet("color:#f8fafc;")
         self.study_type = QLabel("Type: -")
+        self.study_type.setStyleSheet("color:#94a3b8;")
         self.study_diff = QLabel("Difficulty: -")
-        self.study_desc = QLabel("Description: Select a gesture to study.")
+        self.study_diff.setStyleSheet("color:#94a3b8;")
+        self.study_desc = QLabel("Select a gesture to study.")
         self.study_desc.setWordWrap(True)
         self.study_desc.setStyleSheet("color:#cbd5e1; font-size:13px; line-height:1.5;")
-        il.addWidget(self.study_name)
-        il.addWidget(self.study_type)
-        il.addWidget(self.study_diff)
-        il.addWidget(self.study_desc)
-        self.btn_start_practice_from_study = QPushButton("Start Practice")
-        self.btn_start_practice_from_study.setObjectName("AccentButton")
-        self.btn_start_practice_from_study.clicked.connect(self.start_practice_from_study)
-        il.addWidget(self.btn_start_practice_from_study)
-        il.addStretch()
+        detail_l.addWidget(self.study_name)
+        detail_l.addWidget(self.study_type)
+        detail_l.addWidget(self.study_diff)
+        detail_l.addWidget(self.study_desc)
 
-        layout.addWidget(list_card, 2)
-        layout.addWidget(center_card, 4)
-        layout.addWidget(info, 3)
+        self.btn_start_practice_from_study = QPushButton("\u2728  Start Practice")
+        self.btn_start_practice_from_study.setObjectName("AccentButton")
+        self.btn_start_practice_from_study.setFont(QFont(self.sys_font, 13, QFont.Bold))
+        self.btn_start_practice_from_study.clicked.connect(self.start_practice_from_study)
+        detail_l.addWidget(self.btn_start_practice_from_study)
+        detail_l.addStretch()
+
+        content_split.addWidget(scroll_area, 5)
+        content_split.addWidget(detail_card, 4)
+        outer.addLayout(content_split, 1)
         return page
+
+    def _toggle_study_level(self, level: int):
+        """Toggle visibility of the gesture list for a study level."""
+        frame = self._study_level_gesture_lists.get(level)
+        if frame:
+            frame.setVisible(not frame.isVisible())
 
     def _build_practice_page(self) -> QWidget:
         page = QWidget()
@@ -1318,14 +1510,46 @@ class MudraMainWindow(QMainWindow):
     def refresh_after_login(self):
         gestures = [dict(g) for g in self.db.get_gestures()]
         self.gesture_rows = gestures
-        self.lesson_summary.setText(f"Lessons ready: 3 | Gestures loaded: {len(gestures)}")
+        self.lesson_summary.setText(f"Lessons ready: 5 levels | Gestures loaded: {len(gestures)}")
         self.feedback_ref_source.setText("Source: isl_videos (local)")
 
-        self.study_gesture_list.clear()
+        # Build a mapping from gesture display_name to its level
+        from utils.common.gesture_catalog import all_gestures as _all_g
+        level_map = {g.display_name: g.level for g in _all_g()}
+
+        # Group gestures by level for the study page
+        level_groups: Dict[int, list] = {lvl: [] for lvl in LEVEL_INFO}
+        for g in gestures:
+            lvl = level_map.get(g["display_name"], 1)
+            if lvl in level_groups:
+                level_groups[lvl].append(g)
+
+        # Build a flat mapping: (level, index_within_level) -> index in self.gesture_rows
+        self._study_level_item_map: Dict[tuple, int] = {}
+
+        for lvl, items in sorted(level_groups.items()):
+            lw = self._study_level_lists.get(lvl)
+            if not lw:
+                continue
+            lw.clear()
+            for local_idx, g in enumerate(items):
+                mode_tag = "\u2b50" if g["gesture_mode"] == "static" else "\u26a1"
+                text = f"{mode_tag}  {g['display_name']}  [{g['gesture_mode']}]"
+                lw.addItem(text)
+                # Find the global index
+                for gi, gr in enumerate(self.gesture_rows):
+                    if gr["gesture_id"] == g["gesture_id"]:
+                        self._study_level_item_map[(lvl, local_idx)] = gi
+                        break
+            # Update the count label
+            count_lbl = self._study_level_cards[lvl].findChild(QLabel, f"LevelCount_{lvl}")
+            if count_lbl:
+                count_lbl.setText(f"{len(items)} gestures")
+
+        # Practice list stays flat
         self.practice_target_list.clear()
         for g in gestures:
             text = f"{g['display_name']}  [{g['gesture_mode']}]"
-            self.study_gesture_list.addItem(text)
             self.practice_target_list.addItem(text)
 
         self.load_analytics()
@@ -1386,11 +1610,31 @@ class MudraMainWindow(QMainWindow):
         )
 
     def on_select_study_gesture(self):
-        idx = self.study_gesture_list.currentRow()
-        if idx < 0 or idx >= len(self.gesture_rows):
+        # Find which level list has the current selection
+        sender = self.sender()
+        found_lvl = None
+        found_local_idx = -1
+        for lvl, lw in self._study_level_lists.items():
+            if lw is sender or lw.currentRow() >= 0:
+                if lw.currentRow() >= 0:
+                    found_lvl = lvl
+                    found_local_idx = lw.currentRow()
+                    break
+
+        if found_lvl is None or found_local_idx < 0:
             return
+
+        # Clear selections in all other level lists
+        for lvl, lw in self._study_level_lists.items():
+            if lvl != found_lvl:
+                lw.clearSelection()
+
+        global_idx = self._study_level_item_map.get((found_lvl, found_local_idx))
+        if global_idx is None or global_idx >= len(self.gesture_rows):
+            return
+
         self._flush_study_timer()
-        self.selected_gesture = dict(self.gesture_rows[idx])
+        self.selected_gesture = dict(self.gesture_rows[global_idx])
         g = self.selected_gesture
         ref_info = get_gesture_reference(str(g["display_name"]))
         self.study_name.setText(f"Gesture: {g['display_name']}")

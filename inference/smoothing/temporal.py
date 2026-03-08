@@ -7,7 +7,7 @@ import numpy as np
 
 
 class PredictionSmoother:
-    def __init__(self, alpha: float = 0.6, confirm_frames: int = 3, vote_window: int = 8):
+    def __init__(self, alpha: float = 0.7, confirm_frames: int = 2, vote_window: int = 8):
         self.alpha = alpha
         self.confirm_frames = confirm_frames
         self.vote_window = vote_window

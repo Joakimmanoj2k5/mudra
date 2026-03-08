@@ -65,11 +65,11 @@ class GesturePredictor:
         self.sequence = deque(maxlen=30)
         self.frame_count = 0
         self.dynamic_stride = 4
-        # Thresholds tuned for real ISL video-trained model
-        self.static_threshold = float(config.get("inference", {}).get("static_threshold", 0.40))
-        self.dynamic_threshold = float(config.get("inference", {}).get("dynamic_threshold", 0.35))
-        self.static_hold_seconds = 1.0
-        self.dynamic_confirm_frames = 4
+        # Thresholds tuned for responsive ISL recognition
+        self.static_threshold = float(config.get("inference", {}).get("static_threshold", 0.30))
+        self.dynamic_threshold = float(config.get("inference", {}).get("dynamic_threshold", 0.25))
+        self.static_hold_seconds = 0.6
+        self.dynamic_confirm_frames = 3
 
         self.label_map = self._load_label_map(config.get("model", {}).get("label_map_path", "models/registry/label_map.json"))
         self.idx_to_label = {v: k for k, v in self.label_map.items()}

@@ -17,10 +17,10 @@ DEFAULT_CONFIG: Dict[str, Any] = {
         "norm_stats_path": "models/registry/norm_stats.json",
     },
     "inference": {
-        "static_threshold": 0.70,
-        "dynamic_threshold": 0.65,
-        "smoothing_alpha": 0.6,
-        "confirmation_frames": 3,
+        "static_threshold": 0.30,
+        "dynamic_threshold": 0.25,
+        "smoothing_alpha": 0.7,
+        "confirmation_frames": 2,
     },
     "database": {"sqlite_path": "database/mudra.db"},
 }
