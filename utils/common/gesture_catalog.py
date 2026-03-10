@@ -20,14 +20,14 @@ class GestureSpec:
 LEVEL_INFO: Dict[int, Dict[str, str]] = {
     1: {"title": "Letters", "emoji": "🔤", "accent": "#22c55e", "bg": "#14532d",
         "desc": "Master the 26 ISL finger-spelling alphabets"},
-    2: {"title": "Numbers & Basics", "emoji": "🔢", "accent": "#3b82f6", "bg": "#1e3a5f",
-        "desc": "Count 1-10 and learn essential everyday signs"},
-    3: {"title": "Everyday Words", "emoji": "💬", "accent": "#f59e0b", "bg": "#713f12",
-        "desc": "Greetings, family, food, and daily life vocabulary"},
-    4: {"title": "Actions & Places", "emoji": "🏫", "accent": "#ec4899", "bg": "#701a3e",
-        "desc": "Education, travel, emergency, and action words"},
-    5: {"title": "Emotions & Advanced", "emoji": "❤️", "accent": "#a78bfa", "bg": "#3b0764",
-        "desc": "Express feelings and complex phrases"},
+    2: {"title": "Core Words", "emoji": "🔢", "accent": "#3b82f6", "bg": "#1e3a5f",
+        "desc": "Numbers, yes/no, and the first essential signs"},
+    3: {"title": "Daily Words", "emoji": "💬", "accent": "#f59e0b", "bg": "#713f12",
+        "desc": "Greetings, family, food, and everyday communication"},
+    4: {"title": "Actions + Places", "emoji": "🏫", "accent": "#ec4899", "bg": "#701a3e",
+        "desc": "Travel, school, emergency, and action signs"},
+    5: {"title": "Emotions + Phrases", "emoji": "😊", "accent": "#a78bfa", "bg": "#3b0764",
+        "desc": "Feelings, reactions, and longer phrases"},
 }
 
 
