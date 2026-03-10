@@ -65,7 +65,7 @@ class GesturePredictor:
         self.sequence = deque(maxlen=30)
         self.frame_count = 0
         self.dynamic_stride = 4
-        # Thresholds tuned for responsive ISL recognition
+        # Thresholds tuned for real ISL video-trained model
         self.static_threshold = float(config.get("inference", {}).get("static_threshold", 0.30))
         self.dynamic_threshold = float(config.get("inference", {}).get("dynamic_threshold", 0.25))
         self.static_hold_seconds = 0.6
@@ -206,8 +206,10 @@ class GesturePredictor:
                 "status": extraction["status"],
                 "label": "NO_HAND",
                 "confidence": 0.0,
+                "model_used": "dynamic" if target_mode == "dynamic" else "static",
                 "latency_ms": int((time.time() - start) * 1000),
                 "extraction": extraction,
+                "stable": False,
             }
 
         feature = build_feature_vector(extraction)

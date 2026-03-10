@@ -8,7 +8,7 @@ model:
 inference:
   static_threshold: 0.30
   dynamic_threshold: 0.25
-  smoothing_alpha: 0.7
+  smoothing_alpha: 0.75
   confirmation_frames: 2
 database:
   sqlite_path: "database/mudra.db"

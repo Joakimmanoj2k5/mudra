@@ -27,7 +27,7 @@ _HAND_CONNECTIONS = [
 
 
 class HandTracker:
-    def __init__(self, max_num_hands: int = 2, det_conf: float = 0.6, track_conf: float = 0.6):
+    def __init__(self, max_num_hands: int = 2, det_conf: float = 0.35, track_conf: float = 0.35):
         self.available = _MP_AVAILABLE
         self._landmarker = None
         if self.available:

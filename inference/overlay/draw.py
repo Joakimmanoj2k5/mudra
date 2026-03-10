@@ -22,7 +22,9 @@ def draw_overlay(frame, result: Dict[str, object], fps: float, target: str = "")
     cv2.addWeighted(overlay, 0.45, frame, 0.55, 0, frame)
     cv2.putText(frame, f"Target: {target or '-'}", (20, 40), cv2.FONT_HERSHEY_SIMPLEX, 0.65, (203, 213, 225), 2)
     cv2.putText(frame, f"Model: {model}", (20, 68), cv2.FONT_HERSHEY_SIMPLEX, 0.60, (148, 163, 184), 2)
-    cv2.putText(frame, f"Pred: {label} ({conf:.2f})", (20, 96), cv2.FONT_HERSHEY_SIMPLEX, 0.65, color, 2)
+    is_correct = target and label == target
+    match_text = "CORRECT" if is_correct else ("Incorrect" if target else label)
+    cv2.putText(frame, f"Result: {match_text} ({conf:.2f})", (20, 96), cv2.FONT_HERSHEY_SIMPLEX, 0.65, color, 2)
     cv2.putText(frame, f"Status: {status}", (20, 124), cv2.FONT_HERSHEY_SIMPLEX, 0.58, color, 2)
     cv2.putText(frame, f"FPS: {fps:.1f}", (20, 152), cv2.FONT_HERSHEY_SIMPLEX, 0.58, (148, 163, 184), 2)
     if perf_warn:
