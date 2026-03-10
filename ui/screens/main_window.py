@@ -174,10 +174,13 @@ class InferenceThread(QThread):
             display_result["env"] = dict(self.env_status)
             display_result["perf_warning"] = "Low Performance Warning" if packet.fps < 15 else ""
 
+            # Draw skeleton on original frame (landmark coords match original space),
+            # then flip for mirror display, then draw text overlays so they read normally.
             self.predictor.tracker.draw(frame, self.last_result.get("extraction", {}))
-            draw_overlay(frame, display_result, packet.fps, target=self.target_name)
+            display_frame = cv2.flip(frame, 1)
+            draw_overlay(display_frame, display_result, packet.fps, target=self.target_name)
 
-            rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            rgb = cv2.cvtColor(display_frame, cv2.COLOR_BGR2RGB)
             h, w, ch = rgb.shape
             qimg = QImage(rgb.data, w, h, ch * w, QImage.Format_RGB888)
             self.frame_signal.emit(qimg.copy())
