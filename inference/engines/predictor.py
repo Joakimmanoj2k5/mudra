@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import pickle
 import time
 from collections import deque
 from pathlib import Path
@@ -66,9 +67,9 @@ class GesturePredictor:
         self.frame_count = 0
         self.dynamic_stride = 4
         # Thresholds tuned for real ISL video-trained model
-        self.static_threshold = float(config.get("inference", {}).get("static_threshold", 0.30))
+        self.static_threshold = float(config.get("inference", {}).get("static_threshold", 0.15))
         self.dynamic_threshold = float(config.get("inference", {}).get("dynamic_threshold", 0.25))
-        self.static_hold_seconds = 0.6
+        self.static_hold_seconds = 0.3
         self.dynamic_confirm_frames = 3
 
         self.label_map = self._load_label_map(config.get("model", {}).get("label_map_path", "models/registry/label_map.json"))
@@ -81,6 +82,8 @@ class GesturePredictor:
         self.normalizer = FeatureNormalizer()
         self._load_norm(config.get("model", {}).get("norm_stats_path", "models/registry/norm_stats.json"))
         self.static_model = self._load_static_model(config.get("model", {}).get("static_model_path", ""))
+        self._load_centroids()
+        self._load_letter_rf()
         self.dynamic_normalizer = FeatureNormalizer()
         self._load_dynamic_norm("models/registry/dynamic_norm_stats.json")
         self.dynamic_model = self._load_dynamic_model(config.get("model", {}).get("dynamic_model_path", ""))
@@ -128,6 +131,190 @@ class GesturePredictor:
         p.parent.mkdir(parents=True, exist_ok=True)
         p.write_text(json.dumps(modes, indent=2), encoding="utf-8")
         return modes
+
+    @staticmethod
+    def _swap_hand_slots(feature: np.ndarray) -> np.ndarray:
+        """Swap left/right hand slots in a 136-dim feature vector."""
+        swapped = feature.copy()
+        swapped[:63] = feature[63:126]
+        swapped[63:126] = feature[:63]
+        swapped[126:131] = feature[131:136]
+        swapped[131:136] = feature[126:131]
+        return swapped
+
+    @staticmethod
+    def _get_active_hand_coords(feature: np.ndarray) -> np.ndarray:
+        """Get 21x3 coords of the dominant hand from a 136-dim raw feature."""
+        left = feature[:63].reshape(21, 3)
+        right = feature[63:126].reshape(21, 3)
+        return left if np.abs(left).sum() > np.abs(right).sum() else right
+
+    @staticmethod
+    def _hand_shape_features(coords: np.ndarray) -> np.ndarray:
+        """Extract 36-dim geometric hand shape descriptor from 21x3 landmarks."""
+        c = coords
+        feats = []
+        wrist = c[0]
+        finger_ids = [
+            (4, 3, 2, 1), (8, 7, 6, 5), (12, 11, 10, 9),
+            (16, 15, 14, 13), (20, 19, 18, 17),
+        ]
+        # Finger extension ratios (5)
+        for tip, dip, pip, mcp in finger_ids:
+            td = np.linalg.norm(c[tip] - wrist)
+            pd = np.linalg.norm(c[pip] - wrist)
+            feats.append(td / pd if pd > 1e-6 else 1.0)
+        # Finger curl angles at PIP (5)
+        for tip, dip, pip, mcp in finger_ids:
+            v1 = c[mcp] - c[pip]
+            v2 = c[tip] - c[pip]
+            d = np.linalg.norm(v1) * np.linalg.norm(v2)
+            if d > 1e-6:
+                feats.append(float(np.arccos(np.clip(np.dot(v1, v2) / d, -1, 1))))
+            else:
+                feats.append(0.0)
+        # Fingertip positions relative to palm center (10)
+        palm = c[9]
+        for tip, dip, pip, mcp in finger_ids:
+            diff = c[tip] - palm
+            feats.append(diff[0])
+            feats.append(diff[1])
+        # Inter-finger spread (4)
+        tips = [4, 8, 12, 16, 20]
+        for i in range(4):
+            v1 = c[tips[i]] - palm
+            v2 = c[tips[i + 1]] - palm
+            d = np.linalg.norm(v1) * np.linalg.norm(v2)
+            if d > 1e-6:
+                feats.append(float(np.arccos(np.clip(np.dot(v1, v2) / d, -1, 1))))
+            else:
+                feats.append(0.0)
+        # Thumb-to-finger distances (4)
+        for tid in [8, 12, 16, 20]:
+            feats.append(np.linalg.norm(c[4] - c[tid]))
+        # Fingertip y-coords (5)
+        for tip, dip, pip, mcp in finger_ids:
+            feats.append(c[tip][1])
+        # Thumb-finger contact (3)
+        for tid in [8, 12, 16]:
+            feats.append(np.linalg.norm(c[4] - c[tid]))
+        return np.array(feats, dtype=np.float32)
+
+    @staticmethod
+    def _extract_active_hand(feature: np.ndarray) -> np.ndarray:
+        """Extract 68-dim active hand features (63 coords + 5 angles)."""
+        left = feature[:63]
+        right = feature[63:126]
+        if np.abs(left).sum() > np.abs(right).sum():
+            return np.concatenate([left, feature[126:131]])
+        return np.concatenate([right, feature[131:136]])
+
+    def _load_letter_rf(self) -> None:
+        """Load the Random Forest letter classifier."""
+        self.letter_rf = None
+        self.letter_scaler = None
+        self.letter_idx_list = None
+        p = Path("models/registry/letter_rf_model.pkl")
+        if not p.exists():
+            return
+        with open(p, "rb") as f:
+            d = pickle.load(f)
+        self.letter_rf = d["model"]
+        self.letter_scaler = d["scaler"]
+        self.letter_idx_list = d["letter_idx_list"]
+
+    def _letter_rf_probs(self, raw_feature: np.ndarray) -> np.ndarray:
+        """Get 71-class probabilities using the RF letter classifier.
+        Non-letter classes get zero probability."""
+        n_cls = len(self.label_map)
+        if self.letter_rf is None:
+            return np.ones(n_cls, dtype=np.float32) / n_cls
+        coords = self._get_active_hand_coords(raw_feature)
+        shape = self._hand_shape_features(coords)
+        active = self._extract_active_hand(raw_feature)
+        combined = np.concatenate([shape, active])
+        scaled = self.letter_scaler.transform(combined.reshape(1, -1))
+        rf_probs = self.letter_rf.predict_proba(scaled)[0]
+        # Map compact letter probs back to 71-class space
+        full_probs = np.zeros(n_cls, dtype=np.float32)
+        for compact_idx, orig_idx in enumerate(self.letter_idx_list):
+            if orig_idx < n_cls:
+                full_probs[orig_idx] = rf_probs[compact_idx]
+        return full_probs
+
+    def _load_centroids(self) -> None:
+        """Load pre-computed class centroids and exemplars for similarity matching."""
+        self.centroids = None
+        self.exemplar_matrix = None
+        self.exemplar_labels = None
+        p = Path("models/registry/static_centroids.npz")
+        if not p.exists():
+            return
+        data = np.load(p)
+        self.centroids = data["centroids"]  # (n_cls, feat_dim), L2-normalized
+
+        ep = Path("models/registry/static_exemplars.npz")
+        if not ep.exists():
+            return
+        edata = np.load(ep)
+        feats_list = []
+        labels_list = []
+        for key in edata.files:
+            cls_idx = int(key.split("_")[1])
+            for feat in edata[key]:
+                norm = np.linalg.norm(feat)
+                if norm > 1e-8:
+                    feats_list.append(feat / norm)
+                    labels_list.append(cls_idx)
+        if feats_list:
+            self.exemplar_matrix = np.stack(feats_list, axis=0)
+            self.exemplar_labels = np.array(labels_list, dtype=np.int32)
+
+    def _centroid_probs(self, feature: np.ndarray) -> np.ndarray:
+        """Class probabilities via cosine similarity to centroids + KNN exemplars.
+        Tries both original and hand-swapped feature, takes the best per class."""
+        n_cls = self.centroids.shape[0]
+        norm = np.linalg.norm(feature)
+        if norm < 1e-8:
+            return np.ones(n_cls, dtype=np.float32) / n_cls
+
+        # Try both the original and hand-swapped feature
+        swapped = self._swap_hand_slots(feature)
+        swap_norm = np.linalg.norm(swapped)
+
+        best_probs = np.zeros(n_cls, dtype=np.float32)
+        for feat, fnorm in [(feature, norm), (swapped, swap_norm)]:
+            if fnorm < 1e-8:
+                continue
+            feat_unit = feat / fnorm
+
+            centroid_sims = self.centroids @ feat_unit
+            centroid_probs = self._softmax(centroid_sims / 0.07)
+
+            if self.exemplar_matrix is not None:
+                all_sims = self.exemplar_matrix @ feat_unit
+                k = min(15, len(all_sims))
+                top_k_idx = np.argpartition(-all_sims, k)[:k]
+                knn_votes = np.zeros(n_cls, dtype=np.float32)
+                for idx in top_k_idx:
+                    sim = max(all_sims[idx], 0.0)
+                    knn_votes[self.exemplar_labels[idx]] += sim * sim
+                total = knn_votes.sum()
+                if total > 1e-8:
+                    knn_probs = knn_votes / total
+                else:
+                    knn_probs = centroid_probs
+                probs = 0.7 * knn_probs + 0.3 * centroid_probs
+            else:
+                probs = centroid_probs
+
+            # Element-wise max: for each class, take the better probability
+            best_probs = np.maximum(best_probs, probs)
+
+        total = best_probs.sum()
+        if total > 1e-8:
+            best_probs /= total
+        return best_probs
 
     def _load_static_model(self, path: str):
         if torch is None:
@@ -213,17 +400,46 @@ class GesturePredictor:
             }
 
         feature = build_feature_vector(extraction)
+        raw_feature = feature.copy()  # Keep un-normalized copy for shape features
         if self.normalizer.mean is not None:
             feature = self.normalizer.transform(feature)
         self.sequence.append(feature)
 
-        if self.static_model is not None and torch is not None:
+        if self.centroids is not None:
+            centroid_p = self._centroid_probs(feature)
+            if self.static_model is not None and torch is not None:
+                with torch.no_grad():
+                    x_orig = torch.tensor(feature, dtype=torch.float32).unsqueeze(0)
+                    swapped_feat = self._swap_hand_slots(feature)
+                    x_swap = torch.tensor(swapped_feat, dtype=torch.float32).unsqueeze(0)
+                    logits_orig = self.static_model(x_orig).squeeze(0).numpy()
+                    logits_swap = self.static_model(x_swap).squeeze(0).numpy()
+                    mlp_orig = self._softmax(logits_orig)
+                    mlp_swap = self._softmax(logits_swap)
+                    mlp_p = np.maximum(mlp_orig, mlp_swap)
+                    mlp_p /= mlp_p.sum()
+                static_probs = 0.70 * centroid_p + 0.30 * mlp_p
+            else:
+                static_probs = centroid_p
+        elif self.static_model is not None and torch is not None:
             with torch.no_grad():
-                x = torch.tensor(feature, dtype=torch.float32).unsqueeze(0)
-                logits = self.static_model(x).squeeze(0).numpy()
-                static_probs = self._softmax(logits)
+                x_orig = torch.tensor(feature, dtype=torch.float32).unsqueeze(0)
+                swapped_feat = self._swap_hand_slots(feature)
+                x_swap = torch.tensor(swapped_feat, dtype=torch.float32).unsqueeze(0)
+                logits_orig = self.static_model(x_orig).squeeze(0).numpy()
+                logits_swap = self.static_model(x_swap).squeeze(0).numpy()
+                mlp_orig = self._softmax(logits_orig)
+                mlp_swap = self._softmax(logits_swap)
+                static_probs = np.maximum(mlp_orig, mlp_swap)
+                static_probs /= static_probs.sum()
         else:
             static_probs = self._rule_based_probs(feature)
+
+        # Blend with RF letter classifier for much better letter recognition
+        if self.letter_rf is not None:
+            rf_probs = self._letter_rf_probs(raw_feature)
+            # RF dominates for letters; existing system handles non-letter words
+            static_probs = 0.65 * rf_probs + 0.35 * static_probs
 
         if target_mode == "dynamic":
             if self.dynamic_model is None or torch is None:

@@ -6,9 +6,9 @@ model:
   label_map_path: "models/registry/label_map.json"
   norm_stats_path: "models/registry/norm_stats.json"
 inference:
-  static_threshold: 0.30
+  static_threshold: 0.15
   dynamic_threshold: 0.25
-  smoothing_alpha: 0.75
+  smoothing_alpha: 0.85
   confirmation_frames: 2
 database:
   sqlite_path: "database/mudra.db"

@@ -36,9 +36,6 @@ class PredictionSmoother:
         if self.candidate_count >= self.confirm_frames:
             self.last_stable = self.candidate
 
-        if self.last_stable >= 0 and len(self.recent_labels) >= self.vote_window // 2:
-            majority = max(set(self.recent_labels), key=list(self.recent_labels).count)
-            self.last_stable = majority
-
-        stable = self.last_stable if self.last_stable >= 0 else label
-        return stable, confidence
+        # Use current EMA label directly — majority voting was causing
+        # stale predictions that locked onto wrong classes
+        return label, confidence
