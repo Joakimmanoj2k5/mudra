@@ -20,6 +20,19 @@ except Exception:
     torch = None
     nn = None
 
+try:
+    import cv2 as _cv2_keras
+except Exception:
+    _cv2_keras = None
+
+try:
+    import os as _os_keras
+    _os_keras.environ.setdefault('TF_CPP_MIN_LOG_LEVEL', '3')
+    _os_keras.environ.setdefault('TF_USE_LEGACY_KERAS', '1')
+    import tf_keras as _tf_keras
+except Exception:
+    _tf_keras = None
+
 
 class StaticMLP(nn.Module if nn else object):
     def __init__(self, input_dim: int, output_dim: int):
@@ -93,6 +106,12 @@ class GesturePredictor:
         self._dynamic_streak_idx = -1
         self._dynamic_streak_count = 0
 
+        # Keras image model (Teachable Machine)
+        self.keras_model = None
+        self.keras_labels: list[str] = []
+        self._keras_label_to_main_idx: dict[int, int] = {}
+        self._load_keras_model()
+
     def _load_label_map(self, path: str) -> Dict[str, int]:
         p = Path(path)
         if p.exists():
@@ -120,6 +139,49 @@ class GesturePredictor:
         data = json.loads(p.read_text(encoding="utf-8"))
         self.dynamic_normalizer.mean = np.array(data["mean"], dtype=np.float32)
         self.dynamic_normalizer.std = np.array(data["std"], dtype=np.float32)
+
+    def _load_keras_model(self) -> None:
+        """Load Teachable Machine Keras H5 model + labels.txt."""
+        model_path = Path("converted_keras/keras_model.h5")
+        label_path = Path("converted_keras/labels.txt")
+        if _tf_keras is None or not model_path.exists() or not label_path.exists():
+            return
+        try:
+            self.keras_model = _tf_keras.models.load_model(str(model_path), compile=False)
+            lines = label_path.read_text(encoding="utf-8").strip().splitlines()
+            self.keras_labels = []
+            for line in lines:
+                parts = line.strip().split(maxsplit=1)
+                self.keras_labels.append(parts[1] if len(parts) > 1 else parts[0])
+            # Map each keras label index → main label_map index (case-insensitive match)
+            label_map_lower = {k.lower(): v for k, v in self.label_map.items()}
+            for ki, kname in enumerate(self.keras_labels):
+                main_idx = label_map_lower.get(kname.lower().strip())
+                if main_idx is not None:
+                    self._keras_label_to_main_idx[ki] = main_idx
+        except Exception:
+            self.keras_model = None
+
+    def _keras_probs(self, frame_bgr) -> np.ndarray | None:
+        """Run Keras image model on a camera frame, return 71-class probs."""
+        if self.keras_model is None or _cv2_keras is None:
+            return None
+        try:
+            img = _cv2_keras.resize(frame_bgr, (224, 224))
+            img = _cv2_keras.cvtColor(img, _cv2_keras.COLOR_BGR2RGB)
+            arr = (img.astype(np.float32) / 127.5) - 1.0
+            preds = self.keras_model.predict(arr[np.newaxis, ...], verbose=0)[0]
+            n_cls = len(self.label_map)
+            full_probs = np.zeros(n_cls, dtype=np.float32)
+            for ki, main_idx in self._keras_label_to_main_idx.items():
+                if ki < len(preds) and main_idx < n_cls:
+                    full_probs[main_idx] = preds[ki]
+            total = full_probs.sum()
+            if total > 1e-8:
+                full_probs /= total
+            return full_probs
+        except Exception:
+            return None
 
     def _load_class_modes(self, path: str) -> Dict[str, str]:
         p = Path(path)
@@ -440,6 +502,11 @@ class GesturePredictor:
             rf_probs = self._letter_rf_probs(raw_feature)
             # RF dominates for letters; existing system handles non-letter words
             static_probs = 0.65 * rf_probs + 0.35 * static_probs
+
+        # Blend with Keras image model if available
+        keras_p = self._keras_probs(frame_bgr)
+        if keras_p is not None:
+            static_probs = 0.50 * keras_p + 0.50 * static_probs
 
         if target_mode == "dynamic":
             if self.dynamic_model is None or torch is None:

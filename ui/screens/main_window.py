@@ -594,18 +594,36 @@ class MudraMainWindow(QMainWindow):
 
         self.sidebar = QFrame()
         self.sidebar.setObjectName("Sidebar")
-        self.sidebar.setFixedWidth(220)
+        self._sidebar_expanded = True
+        self._sidebar_full_width = 220
+        self._sidebar_collapsed_width = 54
+        self.sidebar.setFixedWidth(self._sidebar_full_width)
         sbl = QVBoxLayout(self.sidebar)
         sbl.setContentsMargins(12, 14, 12, 14)
         sbl.setSpacing(8)
 
-        logo = QLabel("MUDRA")
-        logo.setObjectName("BrandTitle")
-        logo.setFont(QFont(self.sys_font, 28, QFont.Bold))
-        logo_sub = QLabel("Interactive ISL Learning")
-        logo_sub.setObjectName("BrandSub")
-        sbl.addWidget(logo)
-        sbl.addWidget(logo_sub)
+        # Collapse / expand toggle
+        self.sidebar_toggle = QPushButton("\u276E")
+        self.sidebar_toggle.setFixedSize(30, 30)
+        self.sidebar_toggle.setCursor(Qt.PointingHandCursor)
+        self.sidebar_toggle.setStyleSheet(
+            "QPushButton { background:#1a2332; color:#94a3b8; border:1px solid #2a3446; "
+            "border-radius:8px; font-size:14px; font-weight:700; } "
+            "QPushButton:hover { background:#243041; color:#f8fafc; }"
+        )
+        self.sidebar_toggle.clicked.connect(self._toggle_sidebar)
+        toggle_row = QHBoxLayout()
+        toggle_row.addStretch()
+        toggle_row.addWidget(self.sidebar_toggle)
+        sbl.addLayout(toggle_row)
+
+        self.logo_label = QLabel("MUDRA")
+        self.logo_label.setObjectName("BrandTitle")
+        self.logo_label.setFont(QFont(self.sys_font, 28, QFont.Bold))
+        self.logo_sub = QLabel("Interactive ISL Learning")
+        self.logo_sub.setObjectName("BrandSub")
+        sbl.addWidget(self.logo_label)
+        sbl.addWidget(self.logo_sub)
         sbl.addSpacing(8)
 
         nav = [
@@ -635,6 +653,9 @@ class MudraMainWindow(QMainWindow):
         self.btn_logout.clicked.connect(self.logout)
         sbl.addStretch()
         sbl.addWidget(self.btn_logout)
+
+        # Keep references for collapse / expand
+        self._sidebar_nav_buttons_list = list(self.nav_buttons.values())
 
         content_wrap = QFrame()
         content_wrap.setObjectName("CenterWrap")
@@ -1315,84 +1336,123 @@ class MudraMainWindow(QMainWindow):
         outer.setContentsMargins(4, 4, 4, 4)
         outer.setSpacing(10)
 
-        # ---- Top bar: target + score + controls ----
+        # ---- Top bar: controls ----
         top_card = QFrame()
         top_card.setObjectName("InfoCard")
         top_l = QHBoxLayout(top_card)
         top_l.setContentsMargins(14, 10, 14, 10)
         top_l.setSpacing(14)
-        self.quiz_target = QLabel("Quiz target: -")
-        self.quiz_target.setFont(QFont(self.sys_font, 18, QFont.Bold))
-        self.quiz_target.setStyleSheet("color:#f8fafc;")
+        self.quiz_progress = QLabel("Question: 0/10")
+        self.quiz_progress.setStyleSheet("color:#94a3b8; font-size:13px;")
         self.quiz_state = QLabel("Score: 0/0")
         self.quiz_state.setFont(QFont(self.sys_font, 14, QFont.Bold))
         self.quiz_state.setStyleSheet("color:#facc15;")
-        self.quiz_progress = QLabel("Question: 0/10")
-        self.quiz_progress.setStyleSheet("color:#94a3b8; font-size:13px;")
         b1 = QPushButton("Start Quiz (10 Questions)")
         b1.setObjectName("AccentButton")
         b2 = QPushButton("Submit Answer")
         b2.setObjectName("GhostButton")
         b1.clicked.connect(self.start_quiz)
         b2.clicked.connect(self.submit_quiz_answer)
-        top_l.addWidget(self.quiz_target, 1)
         top_l.addWidget(self.quiz_progress)
         top_l.addWidget(self.quiz_state)
+        top_l.addStretch()
         top_l.addWidget(b1)
         top_l.addWidget(b2)
         outer.addWidget(top_card)
 
-        # ---- Main area: reference (left) + camera (right) ----
-        split = QHBoxLayout()
-        split.setSpacing(10)
+        # ---- Prominent question card ----
+        q_card = QFrame()
+        q_card.setStyleSheet(
+            "background: qlineargradient(x1:0,y1:0,x2:1,y2:1,"
+            "stop:0 #1a1040, stop:1 #0f172a);"
+            "border:1px solid #6366f1; border-radius:18px;"
+        )
+        q_inner = QVBoxLayout(q_card)
+        q_inner.setContentsMargins(24, 20, 24, 20)
+        q_inner.setSpacing(6)
+        q_label = QLabel("\U0001F4AC  Show the sign for:")
+        q_label.setStyleSheet("color:#a5b4fc; font-size:14px; background:transparent;")
+        self.quiz_target = QLabel("Press Start Quiz")
+        self.quiz_target.setFont(QFont(self.sys_font, 26, QFont.Bold))
+        self.quiz_target.setStyleSheet("color:#f8fafc; background:transparent;")
+        self.quiz_target.setAlignment(Qt.AlignCenter)
+        self.quiz_target.setWordWrap(True)
+        q_inner.addWidget(q_label, 0, Qt.AlignCenter)
+        q_inner.addWidget(self.quiz_target, 0, Qt.AlignCenter)
+        outer.addWidget(q_card)
 
-        left_card = QFrame()
-        left_card.setObjectName("InfoCard")
-        left = QVBoxLayout(left_card)
-        left.setContentsMargins(10, 10, 10, 10)
-        left.setSpacing(8)
-        qref_header = QLabel("Reference Gesture")
-        qref_header.setFont(QFont(self.sys_font, 14, QFont.Bold))
-        qref_header.setStyleSheet("color:#10b981;")
-        qref_header.setAlignment(Qt.AlignCenter)
-        left.addWidget(qref_header)
-        self.quiz_ref_label = QLabel("Start a quiz to see the reference")
-        self.quiz_ref_label.setAlignment(Qt.AlignCenter)
-        self.quiz_ref_label.setMinimumSize(380, 320)
-        self.quiz_ref_label.setStyleSheet("background:#05070a; border-radius:14px; border:1px solid #334155; padding:12px;")
-        self.quiz_ref_status = QLabel("Waiting for quiz start")
-        self.quiz_ref_status.setAlignment(Qt.AlignCenter)
-        self.quiz_ref_status.setObjectName("SectionMeta")
-        left.addWidget(self.quiz_ref_label)
-        left.addWidget(self.quiz_ref_status)
+        # ---- Camera + hidden reference side-by-side ----
+        body = QHBoxLayout()
+        body.setSpacing(10)
 
-        right_card = QFrame()
-        right_card.setObjectName("InfoCard")
-        right = QVBoxLayout(right_card)
-        right.setContentsMargins(10, 10, 10, 10)
-        right.setSpacing(8)
+        cam_card = QFrame()
+        cam_card.setObjectName("InfoCard")
+        cam_l = QVBoxLayout(cam_card)
+        cam_l.setContentsMargins(10, 10, 10, 10)
+        cam_l.setSpacing(8)
         qcam_header = QLabel("Your Camera")
         qcam_header.setFont(QFont(self.sys_font, 14, QFont.Bold))
         qcam_header.setStyleSheet("color:#1cb0f6;")
         qcam_header.setAlignment(Qt.AlignCenter)
-        right.addWidget(qcam_header)
+        cam_l.addWidget(qcam_header)
         self.quiz_camera_view = QLabel("Camera will start with the quiz")
         self.quiz_camera_view.setAlignment(Qt.AlignCenter)
         self.quiz_camera_view.setMinimumSize(380, 320)
         self.quiz_camera_view.setStyleSheet("background:#05070a; border-radius:14px; border:1px solid #334155; padding:12px;")
-        self.quiz_pred_label = QLabel("Prediction: -")
+        self.quiz_pred_label = QLabel("")
         self.quiz_pred_label.setAlignment(Qt.AlignCenter)
         self.quiz_pred_label.setStyleSheet("color:#94a3b8; font-size:13px;")
         self.quiz_feedback = QLabel("Press 'Start Quiz' to begin")
         self.quiz_feedback.setObjectName("StatusPill")
-        right.addWidget(self.quiz_camera_view)
-        right.addWidget(self.quiz_pred_label)
-        right.addWidget(self.quiz_feedback)
+        cam_l.addWidget(self.quiz_camera_view, 1)
+        cam_l.addWidget(self.quiz_pred_label)
+        cam_l.addWidget(self.quiz_feedback)
+        body.addWidget(cam_card, 3)
 
-        split.addWidget(left_card, 1)
-        split.addWidget(right_card, 1)
-        outer.addLayout(split, 1)
+        # Reference card — hidden by default, revealed on button click
+        self.quiz_ref_card = QFrame()
+        self.quiz_ref_card.setObjectName("InfoCard")
+        ref_l = QVBoxLayout(self.quiz_ref_card)
+        ref_l.setContentsMargins(10, 10, 10, 10)
+        ref_l.setSpacing(8)
+        qref_header = QLabel("Answer Reference")
+        qref_header.setFont(QFont(self.sys_font, 14, QFont.Bold))
+        qref_header.setStyleSheet("color:#10b981;")
+        qref_header.setAlignment(Qt.AlignCenter)
+        ref_l.addWidget(qref_header)
+        self.quiz_ref_label = QLabel("")
+        self.quiz_ref_label.setAlignment(Qt.AlignCenter)
+        self.quiz_ref_label.setMinimumSize(320, 280)
+        self.quiz_ref_label.setStyleSheet("background:#05070a; border-radius:14px; border:1px solid #334155; padding:12px;")
+        self.quiz_ref_status = QLabel("")
+        self.quiz_ref_status.setAlignment(Qt.AlignCenter)
+        self.quiz_ref_status.setObjectName("SectionMeta")
+        ref_l.addWidget(self.quiz_ref_label, 1)
+        ref_l.addWidget(self.quiz_ref_status)
+        self.quiz_ref_card.setVisible(False)
+        body.addWidget(self.quiz_ref_card, 2)
+
+        outer.addLayout(body, 1)
+
+        # Reveal answer button
+        self.btn_reveal_answer = QPushButton("\U0001F441  Reveal Answer")
+        self.btn_reveal_answer.setCursor(Qt.PointingHandCursor)
+        self.btn_reveal_answer.setStyleSheet(
+            "QPushButton { background:#1e293b; color:#a5b4fc; border:1px solid #4f46e5; "
+            "border-radius:12px; padding:10px 20px; font-size:14px; font-weight:600; } "
+            "QPushButton:hover { background:#312e81; color:#e0e7ff; }"
+        )
+        self.btn_reveal_answer.clicked.connect(self._toggle_quiz_reveal)
+        outer.addWidget(self.btn_reveal_answer, 0, Qt.AlignCenter)
         return page
+
+    def _toggle_quiz_reveal(self):
+        visible = self.quiz_ref_card.isVisible()
+        self.quiz_ref_card.setVisible(not visible)
+        if visible:
+            self.btn_reveal_answer.setText("\U0001F441  Reveal Answer")
+        else:
+            self.btn_reveal_answer.setText("\U0001F648  Hide Answer")
 
     def _build_analytics_page(self) -> QWidget:
         page = QWidget()
@@ -1941,6 +2001,37 @@ class MudraMainWindow(QMainWindow):
         else:
             self._reset_practice_target()
 
+    # ------------------------------------------------------------------ sidebar
+    def _toggle_sidebar(self):
+        if self._sidebar_expanded:
+            self.sidebar.setFixedWidth(self._sidebar_collapsed_width)
+            self.logo_label.setVisible(False)
+            self.logo_sub.setVisible(False)
+            collapsed_nav = (
+                "QPushButton#NavButton { text-align: center; padding: 10px 0px; }"
+                "QPushButton#NavButton:checked { text-align: center; padding: 10px 0px; }"
+            )
+            collapsed_logout = (
+                "QPushButton#LogoutButton { text-align: center; padding: 10px 0px; }"
+            )
+            for btn in self._sidebar_nav_buttons_list:
+                btn.setText("")
+                btn.setStyleSheet(collapsed_nav)
+            self.btn_logout.setText("")
+            self.btn_logout.setStyleSheet(collapsed_logout)
+            self.sidebar_toggle.setText("\u276F")
+        else:
+            self.sidebar.setFixedWidth(self._sidebar_full_width)
+            self.logo_label.setVisible(True)
+            self.logo_sub.setVisible(True)
+            for i, (key, btn) in enumerate(self.nav_buttons.items()):
+                btn.setText(key)
+                btn.setStyleSheet("")  # revert to global stylesheet
+            self.btn_logout.setText("Logout")
+            self.btn_logout.setStyleSheet("")
+            self.sidebar_toggle.setText("\u276E")
+        self._sidebar_expanded = not self._sidebar_expanded
+
     def logout(self):
         self.stop_camera()
         self._flush_study_timer()
@@ -2147,8 +2238,8 @@ class MudraMainWindow(QMainWindow):
         pix = QPixmap.fromImage(qimg)
         scaled = pix.scaled(self.practice_ref_label.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation)
         self.practice_ref_label.setPixmap(scaled)
-        # Also update quiz ref label if visible (shared ref thread)
-        if hasattr(self, 'quiz_ref_label') and self.quiz_ref_label.isVisible():
+        # Always update quiz ref label too (even when hidden, so it's ready on reveal)
+        if hasattr(self, 'quiz_ref_label'):
             scaled_q = pix.scaled(self.quiz_ref_label.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation)
             self.quiz_ref_label.setPixmap(scaled_q)
 
@@ -2284,7 +2375,7 @@ class MudraMainWindow(QMainWindow):
             return
         target = self.quiz_queue[self.quiz_index]
         self.selected_gesture = target
-        self.quiz_target.setText(f"Show the sign for: {target['display_name']}")
+        self.quiz_target.setText(target['display_name'])
         self.quiz_state.setText(f"Score: {self.quiz_score}/{self.quiz_index}")
         self.quiz_progress.setText(f"Question: {self.quiz_index + 1}/{len(self.quiz_queue)}")
         self.quiz_feedback.setText("Make the sign and press Submit")
@@ -2292,7 +2383,9 @@ class MudraMainWindow(QMainWindow):
             "background-color:#0b0f18; border:1px solid #334155; border-radius:12px; "
             "padding:6px 10px; color:#94a3b8; font-weight:700;"
         )
-        # Show reference for quiz target
+        # Hide reference for new question, pre-load it in background
+        self.quiz_ref_card.setVisible(False)
+        self.btn_reveal_answer.setText("\U0001F441  Reveal Answer")
         if hasattr(self, 'quiz_ref_label') and hasattr(self, 'practice_ref_thread'):
             self._load_gesture_reference(self.quiz_ref_label, self.practice_ref_thread, target, "quiz")
             self.quiz_ref_status.setText(f"Reference for: {target['display_name']}")
