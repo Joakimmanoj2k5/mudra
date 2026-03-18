@@ -168,7 +168,11 @@ class InferenceThread(QThread):
             fail_count = 0
             frame = packet.frame
             if packet.should_process:
-                self.last_result = self.predictor.predict(frame, target_mode=self.target_mode)
+                self.last_result = self.predictor.predict(
+                    frame,
+                    target_mode=self.target_mode,
+                    target_name=self.target_name,
+                )
 
             display_result = dict(self.last_result)
             display_result["env"] = dict(self.env_status)

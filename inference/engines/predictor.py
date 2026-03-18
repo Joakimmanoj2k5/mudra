@@ -403,13 +403,57 @@ class GesturePredictor:
         model.eval()
         return model
 
-    def _rule_based_probs(self, feature: np.ndarray) -> np.ndarray:
+    def _rule_based_probs(self, feature: np.ndarray, raw_feature: np.ndarray) -> np.ndarray:
         probs = np.zeros(len(self.label_map), dtype=np.float32)
         if len(probs) == 0:
             return np.array([1.0], dtype=np.float32)
-        idx = int(abs(np.sum(feature) * 1000)) % len(probs)
-        probs[idx] = 0.75
-        probs += 0.25 / len(probs)
+
+        coords = self._get_active_hand_coords(raw_feature)
+        wrist = coords[0]
+
+        def is_ext(tip, pip):
+            # Relaxed threshold: tip should just be farther from wrist than PIP
+            return np.linalg.norm(coords[tip] - wrist) > np.linalg.norm(coords[pip] - wrist) * 0.95
+
+        index_ext = is_ext(8, 5) # Check against MCP instead of PIP to be safer
+        mid_ext = is_ext(12, 9)
+        ring_ext = is_ext(16, 13)
+        pinky_ext = is_ext(20, 17)
+
+        # Thumb extension: tip (4) distance from CMC (1) vs MCP (2) distance from CMC (1)
+        # An extended thumb is stretched out, making the tip much further from the base.
+        thumb_ext = np.linalg.norm(coords[4] - coords[1]) > np.linalg.norm(coords[2] - coords[1]) * 1.5
+
+        detected_label = None
+
+        if index_ext and not mid_ext and not ring_ext and not pinky_ext:
+            detected_label = "One"
+        elif index_ext and mid_ext and not ring_ext and not pinky_ext:
+            dist_tips = np.linalg.norm(coords[8] - coords[12])
+            dist_mcp = np.linalg.norm(coords[5] - coords[9])
+            if dist_tips > dist_mcp * 1.1:
+                detected_label = "Two"
+        elif index_ext and mid_ext and ring_ext and not pinky_ext:
+            detected_label = "Three"
+        elif index_ext and mid_ext and ring_ext and pinky_ext:
+            if thumb_ext:
+                detected_label = "Five"
+            else:
+                detected_label = "Four"
+        elif not index_ext and not mid_ext and not ring_ext and not pinky_ext:
+            tip_dist = np.linalg.norm(coords[8] - wrist)
+            pip_dist = np.linalg.norm(coords[6] - wrist)
+            if tip_dist > pip_dist * 0.7:
+                detected_label = "C"
+            else:
+                detected_label = "A"
+
+        if detected_label and detected_label in self.label_map:
+            probs[self.label_map[detected_label]] = 1.0
+        else:
+            # Neutral fallback: avoid injecting random class noise.
+            probs[:] = 1.0 / len(probs)
+
         return probs
 
     @staticmethod
@@ -429,6 +473,19 @@ class GesturePredictor:
             return probs
         return masked / total
 
+    @staticmethod
+    def _is_letter_label(label: str) -> bool:
+        return len(label) == 1 and label.isalpha() and label.upper() == label
+
+    def _normalize_probs(self, probs: np.ndarray) -> np.ndarray:
+        total = float(np.sum(probs))
+        if total <= 1e-8:
+            n = len(probs)
+            if n == 0:
+                return np.array([1.0], dtype=np.float32)
+            return np.ones(n, dtype=np.float32) / n
+        return probs / total
+
     def _predict_dynamic_probs(self) -> np.ndarray | None:
         if self.dynamic_model is None or torch is None or len(self.sequence) < self.sequence.maxlen:
             return self.last_dynamic_probs
@@ -444,7 +501,13 @@ class GesturePredictor:
         self.last_dynamic_probs = self._softmax(logits)
         return self.last_dynamic_probs
 
-    def predict(self, frame_bgr, mode: str = "practice", target_mode: str = "static") -> Dict[str, object]:
+    def predict(
+        self,
+        frame_bgr,
+        mode: str = "practice",
+        target_mode: str = "static",
+        target_name: str | None = None,
+    ) -> Dict[str, object]:
         start = time.time()
         self.frame_count += 1
         extraction = self.tracker.extract(frame_bgr)
@@ -466,6 +529,8 @@ class GesturePredictor:
         if self.normalizer.mean is not None:
             feature = self.normalizer.transform(feature)
         self.sequence.append(feature)
+
+        rule_probs = self._rule_based_probs(feature, raw_feature)
 
         if self.centroids is not None:
             centroid_p = self._centroid_probs(feature)
@@ -495,18 +560,39 @@ class GesturePredictor:
                 static_probs = np.maximum(mlp_orig, mlp_swap)
                 static_probs /= static_probs.sum()
         else:
-            static_probs = self._rule_based_probs(feature)
+            static_probs = rule_probs
 
-        # Blend with RF letter classifier for much better letter recognition
+        # Use rules as a soft prior when model outputs are available.
+        # This avoids hard overrides that previously forced D->One and B->Four.
+        if not np.allclose(static_probs, rule_probs):
+            static_probs = 0.95 * static_probs + 0.05 * rule_probs
+            static_probs = self._normalize_probs(static_probs)
+
+        # Blend RF only into letter classes so non-letter words (e.g., Home/Mother)
+        # are not suppressed by a letter-only classifier.
         if self.letter_rf is not None:
             rf_probs = self._letter_rf_probs(raw_feature)
-            # RF dominates for letters; existing system handles non-letter words
-            static_probs = 0.65 * rf_probs + 0.35 * static_probs
+            letter_indices = {
+                idx for name, idx in self.label_map.items() if self._is_letter_label(name)
+            }
+            if letter_indices:
+                blended = static_probs.copy()
+                for idx in letter_indices:
+                    blended[idx] = 0.65 * rf_probs[idx] + 0.35 * static_probs[idx]
+                static_probs = self._normalize_probs(blended)
 
         # Blend with Keras image model if available
         keras_p = self._keras_probs(frame_bgr)
         if keras_p is not None:
             static_probs = 0.50 * keras_p + 0.50 * static_probs
+            static_probs = self._normalize_probs(static_probs)
+
+        # Slightly bias toward selected target in practice mode to stabilize
+        # intended class detection without hard-forcing outcomes.
+        if target_mode == "static" and target_name and target_name in self.label_map:
+            target_idx = self.label_map[target_name]
+            static_probs[target_idx] *= 1.25
+            static_probs = self._normalize_probs(static_probs)
 
         if target_mode == "dynamic":
             if self.dynamic_model is None or torch is None:
@@ -538,6 +624,8 @@ class GesturePredictor:
             probs = static_probs
             model_used = "static"
             threshold = self.static_threshold
+            if target_name and target_name in self.label_map:
+                threshold = max(threshold, 0.25)
         else:
             probs = static_probs
             model_used = "static"
